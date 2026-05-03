@@ -60,6 +60,7 @@ pipeline {
                 DOCKER_HOST                           = 'unix:///tmp/docker-proxy.sock'
                 TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE = '/tmp/docker-proxy.sock'
                 TESTCONTAINERS_RYUK_DISABLED          = 'true'
+                DOCKER_API_VERSION                    = '1.44'
             }
             parallel {
                 stage('auth') {

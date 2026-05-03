@@ -40,15 +40,13 @@ def rewrite_request_line(data):
 
 
 def forward_stream(src, dst, rewrite=False, buf_size=65536):
-    first_chunk = True
     try:
         while True:
             data = src.recv(buf_size)
             if not data:
                 break
-            if rewrite and first_chunk:
+            if rewrite:
                 data = rewrite_request_line(data)
-                first_chunk = False
             dst.sendall(data)
     except Exception:
         pass

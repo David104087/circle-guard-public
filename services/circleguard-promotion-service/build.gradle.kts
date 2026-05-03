@@ -41,26 +41,19 @@ configurations.all {
 }
 
 tasks.withType<Test> {
-    // docker-java defaults to API 1.32, but Docker 29.x requires >= 1.44.
-    // Use a version-rewriting proxy socket (docker-version-proxy.py).
-    // On macOS dev: detect raw socket and use the local proxy.
-    // In CI (Jenkins): DOCKER_HOST env var is set externally; forward it to the forked test JVM.
     val rawSocket = "/Users/davidartuduagapenagos/Library/Containers/com.docker.docker/Data/docker.raw.sock"
     if (File(rawSocket).exists()) {
-        systemProperty("DOCKER_HOST", "unix:///tmp/docker-proxy.sock")
-        systemProperty("api.version", "1.44")
         environment("DOCKER_HOST", "unix:///tmp/docker-proxy.sock")
         environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/tmp/docker-proxy.sock")
         environment("TESTCONTAINERS_RYUK_DISABLED", "true")
     } else {
-        // Forward Docker env vars from the Gradle daemon (CI environment)
-        System.getenv("DOCKER_HOST")?.let { environment("DOCKER_HOST", it) }
-        System.getenv("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE")?.let {
-            environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", it)
-        }
-        System.getenv("TESTCONTAINERS_RYUK_DISABLED")?.let {
-            environment("TESTCONTAINERS_RYUK_DISABLED", it)
-        }
+        environment("DOCKER_HOST", System.getenv("DOCKER_HOST") ?: "unix:///tmp/docker-proxy.sock")
+        environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE",
+            System.getenv("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE") ?: "/tmp/docker-proxy.sock")
+        environment("TESTCONTAINERS_RYUK_DISABLED",
+            System.getenv("TESTCONTAINERS_RYUK_DISABLED") ?: "true")
     }
+    // Override docker-java's default API version (1.32) to match Docker 29.x minimum (1.44)
+    environment("DOCKER_API_VERSION", "1.44")
     systemProperty("testcontainers.ryuk.disabled", "true")
 }
