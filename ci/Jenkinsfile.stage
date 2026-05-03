@@ -38,7 +38,27 @@ pipeline {
             }
         }
 
+        stage('Setup Docker Proxy') {
+            steps {
+                sh '''
+                    pkill -f docker-version-proxy.py || true
+                    python3 /opt/docker-version-proxy.py \
+                        /tmp/docker-proxy.sock /var/run/docker.sock &
+                    for i in $(seq 1 15); do
+                        [ -S /tmp/docker-proxy.sock ] && echo "Proxy ready" && break
+                        sleep 1
+                    done
+                    ls -la /tmp/docker-proxy.sock
+                '''
+            }
+        }
+
         stage('Unit Tests') {
+            environment {
+                DOCKER_HOST                           = 'unix:///tmp/docker-proxy.sock'
+                TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE = '/tmp/docker-proxy.sock'
+                TESTCONTAINERS_RYUK_DISABLED          = 'true'
+            }
             parallel {
                 stage('auth') {
                     steps {
@@ -169,8 +189,9 @@ pipeline {
             echo "STAGE pipeline failed."
         }
         always {
+            sh 'pkill -f docker-version-proxy.py || true'
             sh 'docker logout || true'
-            cleanWs()
+            deleteDir()
         }
     }
 }

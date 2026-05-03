@@ -173,7 +173,7 @@ pipeline {
         always {
             sh 'pkill -f docker-version-proxy.py || true'
             sh 'docker logout || true'
-            cleanWs()
+            deleteDir()
         }
     }
 }
