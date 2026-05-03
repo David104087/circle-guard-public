@@ -15,10 +15,6 @@ pipeline {
         NAMESPACE        = 'circleguard-dev'
     }
 
-    triggers {
-        githubPush()
-    }
-
     stages {
 
         stage('Checkout') {

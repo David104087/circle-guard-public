@@ -8,6 +8,7 @@ plugins {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.2.4"))
+    testImplementation(enforcedPlatform("org.testcontainers:testcontainers-bom:1.20.4"))
     testImplementation(platform("org.springframework.boot:spring-boot-dependencies:3.2.4"))
 
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -26,7 +27,29 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
-    testImplementation("org.testcontainers:postgresql:1.19.3")
-    testImplementation("org.testcontainers:neo4j:1.19.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
+    testImplementation("org.testcontainers:neo4j:1.20.4")
+}
+
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.testcontainers") {
+            useVersion("1.20.4")
+        }
+    }
+}
+
+tasks.withType<Test> {
+    val rawSocket = "/Users/davidartuduagapenagos/Library/Containers/com.docker.docker/Data/docker.raw.sock"
+    if (File(rawSocket).exists()) {
+        // docker-java defaults to API 1.32, but Docker 29.x requires >= 1.44.
+        // Use a version-rewriting proxy socket (started by docker-version-proxy.py).
+        systemProperty("DOCKER_HOST", "unix:///tmp/docker-proxy.sock")
+        systemProperty("api.version", "1.44")
+        environment("DOCKER_HOST", "unix:///tmp/docker-proxy.sock")
+        environment("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/tmp/docker-proxy.sock")
+        environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+    }
+    systemProperty("testcontainers.ryuk.disabled", "true")
 }

@@ -9,10 +9,10 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -24,11 +24,19 @@ public class HealthStatusReevaluationTest {
     static Neo4jContainer<?> neo4jContainer = new Neo4jContainer<>("neo4j:5.12")
             .withAdminPassword("password");
 
+    @Container
+    @SuppressWarnings("resource")
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7.2.1")
+            .withExposedPorts(6379);
+
     @DynamicPropertySource
     static void neo4jProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.neo4j.uri", neo4jContainer::getBoltUrl);
         registry.add("spring.neo4j.authentication.username", () -> "neo4j");
         registry.add("spring.neo4j.authentication.password", () -> "password");
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+        registry.add("app.neo4j.enabled", () -> "true");
     }
 
     @Autowired
@@ -47,55 +55,44 @@ public class HealthStatusReevaluationTest {
 
     @Test
     void testSingleRelease() {
-        // A (CONFIRMED) -[r1]-> B (SUSPECT)
         createNode("A", "CONFIRMED");
         createNode("B", "SUSPECT");
         createRelationship("A", "B");
 
-        // Resolve A
         healthStatusService.resolveStatus("A");
 
-        // B should become ACTIVE
         assertEquals("ACTIVE", getStatus("B"));
     }
 
     @Test
     void testBlockedRelease() {
-        // A (CONFIRMED) -[r1]-> B (SUSPECT) <-[r2]- C (CONFIRMED)
         createNode("A", "CONFIRMED");
         createNode("B", "SUSPECT");
         createNode("C", "CONFIRMED");
         createRelationship("A", "B");
         createRelationship("C", "B");
 
-        // Resolve A
         healthStatusService.resolveStatus("A");
 
-        // B should stay SUSPECT because of C
         assertEquals("SUSPECT", getStatus("B"));
     }
 
     @Test
     void testMultiHopRelease() {
-        // A (CONFIRMED) -> B (SUSPECT) -> C (PROBABLE)
         createNode("A", "CONFIRMED");
         createNode("B", "SUSPECT");
         createNode("C", "PROBABLE");
         createRelationship("A", "B");
         createRelationship("B", "C");
 
-        // Resolve A
         healthStatusService.resolveStatus("A");
 
-        // Both B and C should become ACTIVE
         assertEquals("ACTIVE", getStatus("B"));
         assertEquals("ACTIVE", getStatus("C"));
     }
 
     @Test
     void testPartialReleaseInMesh() {
-        // A (CONFIRMED) -> B (SUSPECT) -> C (PROBABLE)
-        // D (SUSPECT) -> C (PROBABLE)
         createNode("A", "CONFIRMED");
         createNode("B", "SUSPECT");
         createNode("C", "PROBABLE");
@@ -104,12 +101,9 @@ public class HealthStatusReevaluationTest {
         createRelationship("B", "C");
         createRelationship("D", "C");
 
-        // Resolve A
         healthStatusService.resolveStatus("A");
 
-        // B becomes ACTIVE
         assertEquals("ACTIVE", getStatus("B"));
-        // C stays PROBABLE because of D
         assertEquals("PROBABLE", getStatus("C"));
     }
 
