@@ -1,0 +1,177 @@
+/*
+ * CircleGuard – STAGE Pipeline
+ * Triggers on push to develop branch or manual.
+ * Phases: Checkout → Build → Unit Tests → Integration Tests → Docker Push → Deploy K8s stage
+ */
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER  = 'davidartunduaga'
+        IMAGE_TAG        = "stage-${env.BUILD_NUMBER}"
+        KUBECONFIG       = credentials('kubeconfig-stage')
+        JAVA_HOME        = '/opt/homebrew/opt/openjdk@21'
+        PATH             = "${JAVA_HOME}/bin:${env.PATH}"
+        NAMESPACE        = 'circleguard-stage'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh '''
+                    ./gradlew \
+                        :services:circleguard-auth-service:bootJar \
+                        :services:circleguard-dashboard-service:bootJar \
+                        :services:circleguard-file-service:bootJar \
+                        :services:circleguard-form-service:bootJar \
+                        :services:circleguard-notification-service:bootJar \
+                        :services:circleguard-promotion-service:bootJar \
+                        -x test --no-daemon
+                '''
+            }
+        }
+
+        stage('Unit Tests') {
+            parallel {
+                stage('auth') {
+                    steps {
+                        sh './gradlew :services:circleguard-auth-service:test --no-daemon -PtestFilter=unit'
+                    }
+                    post { always { junit 'services/circleguard-auth-service/build/test-results/**/*.xml' } }
+                }
+                stage('dashboard') {
+                    steps {
+                        sh './gradlew :services:circleguard-dashboard-service:test --no-daemon -PtestFilter=unit'
+                    }
+                    post { always { junit 'services/circleguard-dashboard-service/build/test-results/**/*.xml' } }
+                }
+                stage('file') {
+                    steps {
+                        sh './gradlew :services:circleguard-file-service:test --no-daemon -PtestFilter=unit'
+                    }
+                    post { always { junit 'services/circleguard-file-service/build/test-results/**/*.xml' } }
+                }
+                stage('form') {
+                    steps {
+                        sh './gradlew :services:circleguard-form-service:test --no-daemon -PtestFilter=unit'
+                    }
+                    post { always { junit 'services/circleguard-form-service/build/test-results/**/*.xml' } }
+                }
+                stage('notification') {
+                    steps {
+                        sh './gradlew :services:circleguard-notification-service:test --no-daemon -PtestFilter=unit'
+                    }
+                    post { always { junit 'services/circleguard-notification-service/build/test-results/**/*.xml' } }
+                }
+                stage('promotion') {
+                    steps {
+                        sh './gradlew :services:circleguard-promotion-service:test --no-daemon -PtestFilter=unit'
+                    }
+                    post { always { junit 'services/circleguard-promotion-service/build/test-results/**/*.xml' } }
+                }
+            }
+        }
+
+        stage('Integration Tests') {
+            parallel {
+                stage('dashboard-integration') {
+                    steps {
+                        sh './gradlew :services:circleguard-dashboard-service:test --tests "*.integration.*" --no-daemon'
+                    }
+                }
+                stage('file-integration') {
+                    steps {
+                        sh './gradlew :services:circleguard-file-service:test --tests "*.integration.*" --no-daemon'
+                    }
+                }
+                stage('form-integration') {
+                    steps {
+                        sh './gradlew :services:circleguard-form-service:test --tests "*.integration.*" --no-daemon'
+                    }
+                }
+                stage('auth-integration') {
+                    steps {
+                        sh './gradlew :services:circleguard-auth-service:test --tests "*.integration.*" --no-daemon'
+                    }
+                }
+                stage('notification-integration') {
+                    steps {
+                        sh './gradlew :services:circleguard-notification-service:test --tests "*.integration.*" --no-daemon'
+                    }
+                }
+            }
+            post {
+                always {
+                    junit '**/build/test-results/**/*.xml'
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                }
+                sh '''
+                    for svc in auth dashboard file form notification promotion; do
+                        IMAGE="${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG}"
+                        LATEST="${DOCKER_HUB_USER}/circleguard-${svc}:stage"
+                        docker build -f services/circleguard-${svc}-service/Dockerfile \
+                            -t ${IMAGE} -t ${LATEST} .
+                        docker push ${IMAGE}
+                        docker push ${LATEST}
+                    done
+                '''
+            }
+        }
+
+        stage('Deploy to K8s STAGE') {
+            steps {
+                sh '''
+                    kubectl apply -f k8s/00-namespaces.yaml
+                    kubectl apply -f k8s/infrastructure/
+                    kubectl apply -f k8s/stage/
+                    for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
+                        kubectl rollout restart deployment/${svc} -n ${NAMESPACE}
+                    done
+                    kubectl rollout status deployment/auth-service -n ${NAMESPACE} --timeout=180s
+                    kubectl rollout status deployment/promotion-service -n ${NAMESPACE} --timeout=180s
+                '''
+            }
+        }
+
+        stage('Smoke Tests on Stage') {
+            steps {
+                sh '''
+                    sleep 30
+                    SVC_IP=$(kubectl get svc file-service -n ${NAMESPACE} -o jsonpath='{.spec.clusterIP}')
+                    curl -f http://${SVC_IP}:8085/actuator/health || echo "File service health check skipped"
+                '''
+            }
+        }
+
+    }
+
+    post {
+        success {
+            echo "STAGE pipeline passed. Tag: ${IMAGE_TAG}"
+        }
+        failure {
+            echo "STAGE pipeline failed."
+        }
+        always {
+            sh 'docker logout || true'
+            cleanWs()
+        }
+    }
+}

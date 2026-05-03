@@ -1,0 +1,11 @@
+.git
+.github
+build
+*/build
+*/bin
+*.md
+design-assets
+scratch
+mobile
+docs
+uploads

@@ -1,0 +1,76 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promotion-service-config
+  namespace: circleguard-dev
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/circleguard_promotion"
+  SPRING_DATASOURCE_USERNAME: "admin"
+  SPRING_NEO4J_URI: "bolt://neo4j:7687"
+  SPRING_NEO4J_AUTHENTICATION_USERNAME: "neo4j"
+  SPRING_KAFKA_BOOTSTRAP-SERVERS: "kafka:9092"
+  SPRING_DATA_REDIS_HOST: "redis"
+  SPRING_DATA_REDIS_PORT: "6379"
+  SERVER_PORT: "8088"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: promotion-service-secret
+  namespace: circleguard-dev
+type: Opaque
+stringData:
+  SPRING_DATASOURCE_PASSWORD: "password"
+  SPRING_NEO4J_AUTHENTICATION_PASSWORD: "password"
+  JWT_SECRET: "my-super-secret-dev-key-32-chars-long-12345678"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: promotion-service
+  namespace: circleguard-dev
+  labels:
+    app: promotion-service
+    version: "latest"
+    environment: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: promotion-service
+  template:
+    metadata:
+      labels:
+        app: promotion-service
+    spec:
+      containers:
+        - name: promotion-service
+          image: davidartunduaga/circleguard-promotion:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8088
+          envFrom:
+            - configMapRef:
+                name: promotion-service-config
+            - secretRef:
+                name: promotion-service-secret
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: promotion-service
+  namespace: circleguard-dev
+spec:
+  selector:
+    app: promotion-service
+  ports:
+    - port: 8088
+      targetPort: 8088

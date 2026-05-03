@@ -35,19 +35,23 @@ public class AnalyticsService {
         String query = "SELECT date_trunc('hour', entry_time) as hour, count(*) as entry_count " +
                        "FROM entry_logs WHERE location_id = ? " +
                        "GROUP BY hour ORDER BY hour DESC";
-        
-        List<Map<String, Object>> rows = jdbc.queryForList(query, locationId);
-        
-        // Apply K-Anonymity
-        rows.forEach(row -> {
-            long count = (long) row.get("entry_count");
-            if (count < 5) {
-                row.put("entry_count", "<5");
-                row.put("note", "Insufficient data for privacy");
-            }
-        });
-        
-        return rows;
+
+        try {
+            List<Map<String, Object>> rows = jdbc.queryForList(query, locationId);
+            List<Map<String, Object>> mutableRows = new ArrayList<>(rows.stream()
+                    .map(r -> new LinkedHashMap<>(r)).toList());
+            mutableRows.forEach(row -> {
+                Object val = row.get("entry_count");
+                long count = val instanceof Number ? ((Number) val).longValue() : 0L;
+                if (count > 0 && count < 5) {
+                    row.put("entry_count", "<5");
+                    row.put("note", "Insufficient data for privacy");
+                }
+            });
+            return mutableRows;
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     /**

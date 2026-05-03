@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: form-service-config
+  namespace: circleguard-stage
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/circleguard_form"
+  SPRING_DATASOURCE_USERNAME: "admin"
+  SPRING_KAFKA_BOOTSTRAP-SERVERS: "kafka:9092"
+  SERVER_PORT: "8086"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: form-service-secret
+  namespace: circleguard-stage
+type: Opaque
+stringData:
+  SPRING_DATASOURCE_PASSWORD: "password"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: form-service
+  namespace: circleguard-stage
+  labels:
+    app: form-service
+    version: "latest"
+    environment: stage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: form-service
+  template:
+    metadata:
+      labels:
+        app: form-service
+    spec:
+      containers:
+        - name: form-service
+          image: davidartunduaga/circleguard-form:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: form-service-config
+            - secretRef:
+                name: form-service-secret
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: form-service
+  namespace: circleguard-stage
+spec:
+  selector:
+    app: form-service
+  ports:
+    - port: 8086
+      targetPort: 8086
