@@ -3,6 +3,7 @@ package com.circleguard.promotion.task;
 import com.circleguard.promotion.repository.graph.UserNodeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(name = "app.neo4j.enabled", havingValue = "true", matchIfMissing = true)
 public class GraphCleanupTask {
 
     private final UserNodeRepository userNodeRepository;

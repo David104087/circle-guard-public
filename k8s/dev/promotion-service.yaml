@@ -13,6 +13,8 @@ data:
   SPRING_DATA_REDIS_HOST: "redis"
   SPRING_DATA_REDIS_PORT: "6379"
   SERVER_PORT: "8088"
+  APP_NEO4J_ENABLED: "false"
+  SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.autoconfigure.neo4j.Neo4jAutoConfiguration,org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration"
 ---
 apiVersion: v1
 kind: Secret
@@ -57,11 +59,11 @@ spec:
                 name: promotion-service-secret
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "256Mi"
+              cpu: "100m"
             limits:
-              memory: "1Gi"
-              cpu: "1"
+              memory: "512Mi"
+              cpu: "500m"
 ---
 apiVersion: v1
 kind: Service

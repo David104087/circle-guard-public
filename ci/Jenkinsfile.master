@@ -11,7 +11,7 @@ pipeline {
         DOCKER_HUB_USER  = 'davidartunduaga'
         IMAGE_TAG        = "v${env.BUILD_NUMBER}"
         KUBECONFIG       = credentials('kubeconfig-production')
-        JAVA_HOME        = '/opt/homebrew/opt/openjdk@21'
+        JAVA_HOME        = '/opt/java/openjdk'
         PATH             = "${JAVA_HOME}/bin:${env.PATH}"
         NAMESPACE        = 'circleguard-production'
         GITHUB_TOKEN     = credentials('github-token')
@@ -21,7 +21,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git url: 'https://github.com/David104087/circle-guard-public.git', branch: 'master'
                 sh 'git log --oneline -10'
             }
         }
@@ -121,11 +121,9 @@ pipeline {
                         IMAGE="${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG}"
                         LATEST="${DOCKER_HUB_USER}/circleguard-${svc}:latest"
                         PROD="${DOCKER_HUB_USER}/circleguard-${svc}:prod"
-                        docker build -f services/circleguard-${svc}-service/Dockerfile \
-                            -t ${IMAGE} -t ${LATEST} -t ${PROD} .
-                        docker push ${IMAGE}
-                        docker push ${LATEST}
-                        docker push ${PROD}
+                        docker buildx build --platform linux/amd64 \
+                            -f services/circleguard-${svc}-service/Dockerfile \
+                            -t ${IMAGE} -t ${LATEST} -t ${PROD} --push .
                     done
                 '''
             }

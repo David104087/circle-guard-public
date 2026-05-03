@@ -3,6 +3,7 @@ package com.circleguard.promotion.service;
 import com.circleguard.promotion.model.graph.*;
 import com.circleguard.promotion.repository.graph.UserNodeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,6 +11,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.neo4j.enabled", havingValue = "true", matchIfMissing = true)
 public class GraphService {
     private final UserNodeRepository userNodeRepository;
     private final Neo4jClient neo4jClient;

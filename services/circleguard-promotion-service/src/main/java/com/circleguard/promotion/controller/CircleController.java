@@ -4,6 +4,7 @@ import com.circleguard.promotion.model.graph.CircleNode;
 import com.circleguard.promotion.service.CircleService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/circles")
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.neo4j.enabled", havingValue = "true", matchIfMissing = true)
 public class CircleController {
 
     private final CircleService circleService;

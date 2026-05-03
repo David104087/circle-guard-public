@@ -49,6 +49,12 @@ spec:
               value: ":7687"
             - name: NEO4J_dbms_connector_bolt_advertised__address
               value: ":7687"
+            - name: NEO4J_server_memory_heap_initial__size
+              value: "256m"
+            - name: NEO4J_server_memory_heap_max__size
+              value: "256m"
+            - name: NEO4J_server_memory_pagecache__size
+              value: "128m"
           volumeMounts:
             - name: neo4j-data
               mountPath: /data
@@ -110,6 +116,13 @@ spec:
           envFrom:
             - secretRef:
                 name: neo4j-secret
+          env:
+            - name: NEO4J_server_memory_heap_initial__size
+              value: "256m"
+            - name: NEO4J_server_memory_heap_max__size
+              value: "256m"
+            - name: NEO4J_server_memory_pagecache__size
+              value: "128m"
           resources:
             requests:
               memory: "512Mi"

@@ -3,13 +3,16 @@ package com.circleguard.promotion.config;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.neo4j.core.Neo4jClient;
 
 @Configuration
 @RequiredArgsConstructor
 @Slf4j
-@org.springframework.context.annotation.Profile("!test")
+@Profile("!test")
+@ConditionalOnProperty(name = "app.neo4j.enabled", havingValue = "true", matchIfMissing = true)
 public class Neo4jSchemaConfig {
 
     private final Neo4jClient neo4jClient;

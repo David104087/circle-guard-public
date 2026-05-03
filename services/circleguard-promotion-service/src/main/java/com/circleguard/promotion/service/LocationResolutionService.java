@@ -4,6 +4,7 @@ import com.circleguard.promotion.model.AccessPoint;
 import com.circleguard.promotion.repository.jpa.AccessPointRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(name = "app.neo4j.enabled", havingValue = "true", matchIfMissing = true)
 public class LocationResolutionService {
     private final AccessPointRepository accessPointRepository;
     private final MacSessionRegistry sessionRegistry;

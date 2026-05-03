@@ -4,6 +4,7 @@ import com.circleguard.promotion.exception.FenceException;
 import com.circleguard.promotion.repository.graph.UserNodeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -16,6 +17,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(name = "app.neo4j.enabled", havingValue = "true", matchIfMissing = true)
 public class HealthStatusService {
     private final UserNodeRepository userNodeRepository;
     private final Neo4jClient neo4jClient;
