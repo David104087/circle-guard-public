@@ -54,7 +54,7 @@ pipeline {
                         sleep 1
                     done
                     ls -la /tmp/docker-proxy.sock
-                    printf "docker.host=unix:///tmp/docker-proxy.sock\nryuk.disabled=true\n" \
+                    printf "docker.host=unix:///tmp/docker-proxy.sock\nryuk.disabled=true\nhost.override=host.docker.internal\n" \
                         > ~/.testcontainers.properties
                     echo "testcontainers.properties written:"
                     cat ~/.testcontainers.properties
@@ -68,6 +68,7 @@ pipeline {
                 TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE = '/tmp/docker-proxy.sock'
                 TESTCONTAINERS_RYUK_DISABLED          = 'true'
                 DOCKER_API_VERSION                    = '1.44'
+                TESTCONTAINERS_HOST_OVERRIDE          = 'host.docker.internal'
             }
             parallel {
                 stage('auth-service') {

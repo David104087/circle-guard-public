@@ -52,6 +52,10 @@ tasks.withType<Test> {
             System.getenv("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE") ?: "/tmp/docker-proxy.sock")
         environment("TESTCONTAINERS_RYUK_DISABLED",
             System.getenv("TESTCONTAINERS_RYUK_DISABLED") ?: "true")
+        // In DooD (Docker-outside-Docker) CI setup, containers started via host Docker
+        // are reachable via host.docker.internal, not localhost (which is the CI container)
+        environment("TESTCONTAINERS_HOST_OVERRIDE",
+            System.getenv("TESTCONTAINERS_HOST_OVERRIDE") ?: "host.docker.internal")
     }
     // Override docker-java's default API version (1.32) to match Docker 29.x minimum (1.44)
     environment("DOCKER_API_VERSION", "1.44")
