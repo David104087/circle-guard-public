@@ -41,8 +41,10 @@ pipeline {
 
         stage('Setup Docker Proxy') {
             steps {
-                // Start API-version-rewriting proxy so docker-java (which sends /v1.32/ URLs)
+                // Start API-version-rewriting proxy so docker-java (which hardcodes /v1.32/ URL paths)
                 // works with Docker 29.x which requires minimum API 1.44.
+                // Also write ~/.testcontainers.properties so Testcontainers picks up the proxy
+                // socket regardless of how environment variables are inherited in forked JVMs.
                 sh '''
                     pkill -f docker-version-proxy.py || true
                     python3 /opt/docker-version-proxy.py \
@@ -52,6 +54,10 @@ pipeline {
                         sleep 1
                     done
                     ls -la /tmp/docker-proxy.sock
+                    printf "docker.host=unix:///tmp/docker-proxy.sock\nryuk.disabled=true\n" \
+                        > ~/.testcontainers.properties
+                    echo "testcontainers.properties written:"
+                    cat ~/.testcontainers.properties
                 '''
             }
         }

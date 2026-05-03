@@ -49,6 +49,8 @@ pipeline {
                         sleep 1
                     done
                     ls -la /tmp/docker-proxy.sock
+                    printf "docker.host=unix:///tmp/docker-proxy.sock\nryuk.disabled=true\n" \
+                        > ~/.testcontainers.properties
                 '''
             }
         }
