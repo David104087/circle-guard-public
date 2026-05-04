@@ -163,7 +163,7 @@ pipeline {
                     kubectl rollout status statefulset/postgres -n ${NAMESPACE} --timeout=120s
                     # Ensure required databases exist (idempotent — outer loop expands $db before exec)
                     for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
-                        kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -c "CREATE DATABASE ${db};" 2>/dev/null || true
+                        kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
                     done
                     kubectl apply -f k8s/dev/
                     # Restart deployments to pull latest
