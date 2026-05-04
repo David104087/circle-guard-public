@@ -53,7 +53,7 @@ spec:
               value: "256m"
             - name: NEO4J_server_memory_heap_max__size
               value: "256m"
-            - name: NEO4J_server_memory_pagecache__size
+            - name: NEO4J_server_memory_pagecache_size
               value: "128m"
           volumeMounts:
             - name: neo4j-data
@@ -121,7 +121,7 @@ spec:
               value: "256m"
             - name: NEO4J_server_memory_heap_max__size
               value: "256m"
-            - name: NEO4J_server_memory_pagecache__size
+            - name: NEO4J_server_memory_pagecache_size
               value: "128m"
           resources:
             requests:
