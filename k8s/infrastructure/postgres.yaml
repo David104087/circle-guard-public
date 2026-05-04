@@ -27,7 +27,7 @@ metadata:
 type: Opaque
 stringData:
   POSTGRES_USER: admin
-  POSTGRES_PASSWORD: changeme-in-prod
+  POSTGRES_PASSWORD: password
 ---
 apiVersion: v1
 kind: ConfigMap

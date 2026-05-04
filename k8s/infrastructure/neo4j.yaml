@@ -153,3 +153,75 @@ spec:
     - name: bolt
       port: 7687
   clusterIP: None
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: neo4j-secret
+  namespace: circleguard-production
+type: Opaque
+stringData:
+  NEO4J_AUTH: neo4j/password
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: circleguard-production
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5.26
+          ports:
+            - containerPort: 7474
+            - containerPort: 7687
+          envFrom:
+            - secretRef:
+                name: neo4j-secret
+          env:
+            - name: NEO4J_server_memory_heap_initial__size
+              value: "256m"
+            - name: NEO4J_server_memory_heap_max__size
+              value: "256m"
+            - name: NEO4J_server_memory_pagecache_size
+              value: "128m"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+  volumeClaimTemplates:
+    - metadata:
+        name: neo4j-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j
+  namespace: circleguard-production
+spec:
+  selector:
+    app: neo4j
+  ports:
+    - name: http
+      port: 7474
+    - name: bolt
+      port: 7687
+  clusterIP: None
