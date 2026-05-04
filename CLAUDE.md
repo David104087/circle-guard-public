@@ -205,10 +205,15 @@ Runs automatically in the MASTER pipeline. Generates `RELEASE_NOTES_<tag>.md` fr
 - [x] Postgres `PGDATA` fix applied — no more `lost+found` conflict on block storage
 - [x] All pipelines: idempotent DB creation via `kubectl exec` before service restarts
 
-### Pending / In Progress
-- [ ] **IMMEDIATE:** Trigger STAGE pipeline build 4 — the `kubectl exec` DB creation fix should unblock auth-service startup
-- [ ] STAGE pipeline: Need a full SUCCESS build (Deploy to K8s STAGE currently fails — auth-service `circleguard_auth` DB missing)
-- [ ] MASTER pipeline: Run after STAGE succeeds (all tests + K8s production deploy + release notes)
+### Completed (continued)
+- [x] STAGE pipeline: **BUILD 7 = FULL SUCCESS** — all stages green (unit tests + integration tests + docker push + K8s stage deploy)
+- [x] MASTER pipeline: **BUILD 3 = FULL SUCCESS** — all stages green (unit + integration + E2E + docker push + K8s production deploy + release notes)
+- [x] Release notes generated: `RELEASE_NOTES_v3.md` (archived as Jenkins artifact)
+- [x] All 6 services running in `circleguard-stage` and `circleguard-production`
+- [x] Production infrastructure deployed: kafka, zookeeper, neo4j, redis, mailhog, postgres
+- [x] Promotion-service Neo4j enabled — removed SPRING_AUTOCONFIGURE_EXCLUDE
+
+### Pending
 - [ ] Locust tests: Run manually and capture HTML report
 - [ ] Screenshots for documentation (see Screenshots section below)
 
