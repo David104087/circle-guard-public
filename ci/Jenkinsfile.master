@@ -172,6 +172,14 @@ pipeline {
                 sh '''
                     kubectl apply -f k8s/00-namespaces.yaml
                     kubectl apply -f k8s/infrastructure/
+                    # Wait for postgres to be ready before creating databases
+                    kubectl rollout status statefulset/postgres -n ${NAMESPACE} --timeout=120s
+                    # Ensure required databases exist (idempotent)
+                    kubectl exec statefulset/postgres -n ${NAMESPACE} -- bash -c \
+                        "for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
+                            psql -U \"\$POSTGRES_USER\" -tc \"SELECT 1 FROM pg_database WHERE datname = '\$db'\" | grep -q 1 \
+                                || psql -U \"\$POSTGRES_USER\" -c \"CREATE DATABASE \$db\";
+                        done"
                     # Update image tags to versioned tag
                     for svc in auth dashboard file form notification promotion; do
                         kubectl set image deployment/${svc}-service \
