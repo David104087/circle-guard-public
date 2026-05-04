@@ -60,7 +60,7 @@ spec:
               mountPath: /data
           resources:
             requests:
-              memory: "512Mi"
+              memory: "128Mi"
               cpu: "250m"
             limits:
               memory: "1Gi"
@@ -125,7 +125,7 @@ spec:
               value: "128m"
           resources:
             requests:
-              memory: "512Mi"
+              memory: "128Mi"
               cpu: "250m"
             limits:
               memory: "1Gi"

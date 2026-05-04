@@ -26,7 +26,7 @@ spec:
               value: "2000"
           resources:
             requests:
-              memory: "256Mi"
+              memory: "96Mi"
               cpu: "100m"
             limits:
               memory: "512Mi"
@@ -82,7 +82,7 @@ spec:
               value: "-Xmx256M -Xms128M"
           resources:
             requests:
-              memory: "256Mi"
+              memory: "96Mi"
               cpu: "100m"
             limits:
               memory: "512Mi"
@@ -128,7 +128,7 @@ spec:
               value: "2000"
           resources:
             requests:
-              memory: "256Mi"
+              memory: "96Mi"
               cpu: "100m"
             limits:
               memory: "512Mi"
@@ -183,7 +183,7 @@ spec:
               value: "-Xmx256M -Xms128M"
           resources:
             requests:
-              memory: "256Mi"
+              memory: "96Mi"
               cpu: "100m"
             limits:
               memory: "512Mi"

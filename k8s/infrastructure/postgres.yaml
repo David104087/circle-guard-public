@@ -74,7 +74,7 @@ spec:
               mountPath: /var/lib/postgresql/data
           resources:
             requests:
-              memory: "256Mi"
+              memory: "96Mi"
               cpu: "250m"
             limits:
               memory: "512Mi"
@@ -131,7 +131,7 @@ spec:
               value: circleguard
           resources:
             requests:
-              memory: "256Mi"
+              memory: "96Mi"
               cpu: "250m"
             limits:
               memory: "512Mi"
