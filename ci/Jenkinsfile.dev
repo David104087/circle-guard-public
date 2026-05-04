@@ -164,7 +164,7 @@ pipeline {
                     for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
                         kubectl rollout restart deployment/${svc} -n ${NAMESPACE}
                     done
-                    kubectl rollout status deployment/auth-service -n ${NAMESPACE} --timeout=120s
+                    kubectl rollout status deployment/auth-service -n ${NAMESPACE} --timeout=300s
                 '''
             }
         }
