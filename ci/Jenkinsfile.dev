@@ -158,7 +158,7 @@ pipeline {
             steps {
                 sh '''
                     kubectl apply -f k8s/00-namespaces.yaml
-                    kubectl apply -f k8s/infrastructure/ -n ${NAMESPACE}
+                    kubectl apply -f k8s/infrastructure/
                     kubectl apply -f k8s/dev/
                     # Restart deployments to pull latest
                     for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
