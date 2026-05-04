@@ -36,6 +36,11 @@ metadata:
     environment: production
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: auth-service
@@ -56,14 +61,12 @@ spec:
             - secretRef:
                 name: auth-service-secret
           livenessProbe:
-            httpGet:
-              path: /actuator/health
+            tcpSocket:
               port: 8180
             initialDelaySeconds: 60
             periodSeconds: 30
           readinessProbe:
-            httpGet:
-              path: /actuator/health
+            tcpSocket:
               port: 8180
             initialDelaySeconds: 30
             periodSeconds: 10

@@ -195,18 +195,20 @@ Runs automatically in the MASTER pipeline. Generates `RELEASE_NOTES_<tag>.md` fr
 - [x] Jenkins configured (Docker container, credentials, 3 pipeline jobs)
 - [x] Kubernetes cluster configured (DigitalOcean, 3 namespaces, all manifests in `k8s/`)
 - [x] Dockerfiles for all 6 services (pre-built JAR pattern)
-- [x] All unit tests written and passing in Jenkins (build 11, 12)
+- [x] All unit tests written and passing
 - [x] Integration tests written for all 6 services
 - [x] E2E tests written for all 6 services
 - [x] Locust performance test file (`tests/performance/locustfile.py`)
 - [x] Release notes script (`ci/release-notes.sh`)
-- [x] DEV pipeline: Unit Tests ✓, Docker Build & Push ✓ (build 12)
-- [x] Docker images pushed to Hub: `davidartunduaga/circleguard-{auth,dashboard,file,form,notification,promotion}:12`
+- [x] DEV pipeline: **BUILD 17 = FULL SUCCESS** — all stages green (unit tests + docker push + K8s deploy)
+- [x] STAGE pipeline: Unit Tests ✓, Integration Tests ✓, Docker Push ✓ (builds 1-3)
+- [x] Postgres `PGDATA` fix applied — no more `lost+found` conflict on block storage
+- [x] All pipelines: idempotent DB creation via `kubectl exec` before service restarts
 
 ### Pending / In Progress
-- [ ] DEV build 13: K8s Deploy to DEV must succeed (kubeconfig credentials fixed — was StringCredentials, now FileCredentials)
-- [ ] STAGE pipeline: Run for the first time (integration tests + K8s stage deploy)
-- [ ] MASTER pipeline: Run for the first time (all tests + K8s production deploy + release notes)
+- [ ] **IMMEDIATE:** Trigger STAGE pipeline build 4 — the `kubectl exec` DB creation fix should unblock auth-service startup
+- [ ] STAGE pipeline: Need a full SUCCESS build (Deploy to K8s STAGE currently fails — auth-service `circleguard_auth` DB missing)
+- [ ] MASTER pipeline: Run after STAGE succeeds (all tests + K8s production deploy + release notes)
 - [ ] Locust tests: Run manually and capture HTML report
 - [ ] Screenshots for documentation (see Screenshots section below)
 

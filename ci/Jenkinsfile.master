@@ -178,11 +178,13 @@ pipeline {
                     for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
                         kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
                     done
+                    # Apply production manifests first (ensures strategy/probe config is current)
+                    kubectl apply -f k8s/production/
                     # Update image tags to versioned tag
                     for svc in auth dashboard file form notification promotion; do
                         kubectl set image deployment/${svc}-service \
                             ${svc}-service=${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG} \
-                            -n ${NAMESPACE} || kubectl apply -f k8s/production/${svc}-service.yaml
+                            -n ${NAMESPACE}
                     done
                     # Wait for rollouts
                     for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
