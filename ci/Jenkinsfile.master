@@ -95,6 +95,13 @@ pipeline {
         }
 
         stage('Integration Tests') {
+            environment {
+                DOCKER_HOST                           = 'unix:///tmp/docker-proxy.sock'
+                TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE = '/tmp/docker-proxy.sock'
+                TESTCONTAINERS_RYUK_DISABLED          = 'true'
+                DOCKER_API_VERSION                    = '1.44'
+                TESTCONTAINERS_HOST_OVERRIDE          = 'host.docker.internal'
+            }
             steps {
                 sh '''
                     ./gradlew \
@@ -114,6 +121,13 @@ pipeline {
         }
 
         stage('E2E Tests') {
+            environment {
+                DOCKER_HOST                           = 'unix:///tmp/docker-proxy.sock'
+                TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE = '/tmp/docker-proxy.sock'
+                TESTCONTAINERS_RYUK_DISABLED          = 'true'
+                DOCKER_API_VERSION                    = '1.44'
+                TESTCONTAINERS_HOST_OVERRIDE          = 'host.docker.internal'
+            }
             steps {
                 sh '''
                     ./gradlew \
@@ -139,17 +153,17 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh '''
+                        for svc in auth dashboard file form notification promotion; do
+                            IMAGE="${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG}"
+                            LATEST="${DOCKER_HUB_USER}/circleguard-${svc}:latest"
+                            PROD="${DOCKER_HUB_USER}/circleguard-${svc}:prod"
+                            docker buildx build --platform linux/amd64 \
+                                -f services/circleguard-${svc}-service/Dockerfile \
+                                -t ${IMAGE} -t ${LATEST} -t ${PROD} --push .
+                        done
+                    '''
                 }
-                sh '''
-                    for svc in auth dashboard file form notification promotion; do
-                        IMAGE="${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG}"
-                        LATEST="${DOCKER_HUB_USER}/circleguard-${svc}:latest"
-                        PROD="${DOCKER_HUB_USER}/circleguard-${svc}:prod"
-                        docker buildx build --platform linux/amd64 \
-                            -f services/circleguard-${svc}-service/Dockerfile \
-                            -t ${IMAGE} -t ${LATEST} -t ${PROD} --push .
-                    done
-                '''
             }
         }
 
