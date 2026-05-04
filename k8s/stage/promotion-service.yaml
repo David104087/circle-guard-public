@@ -13,8 +13,7 @@ data:
   SPRING_DATA_REDIS_HOST: "redis"
   SPRING_DATA_REDIS_PORT: "6379"
   SERVER_PORT: "8088"
-  APP_NEO4J_ENABLED: "false"
-  SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.autoconfigure.neo4j.Neo4jAutoConfiguration,org.springframework.boot.autoconfigure.data.neo4j.Neo4jDataAutoConfiguration"
+  APP_NEO4J_ENABLED: "true"
 ---
 apiVersion: v1
 kind: Secret
