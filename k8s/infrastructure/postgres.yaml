@@ -103,7 +103,7 @@ spec:
           resources:
             requests:
               memory: "96Mi"
-              cpu: "250m"
+              cpu: "100m"
             limits:
               memory: "512Mi"
               cpu: "500m"
@@ -169,7 +169,7 @@ spec:
           resources:
             requests:
               memory: "96Mi"
-              cpu: "250m"
+              cpu: "100m"
             limits:
               memory: "512Mi"
               cpu: "500m"
@@ -192,6 +192,72 @@ kind: Service
 metadata:
   name: postgres
   namespace: circleguard-stage
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: circleguard-production
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          env:
+            - name: POSTGRES_DB
+              value: circleguard
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "96Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: circleguard-production
 spec:
   selector:
     app: postgres
