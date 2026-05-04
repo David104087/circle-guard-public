@@ -95,6 +95,8 @@ spec:
           env:
             - name: POSTGRES_DB
               value: circleguard
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
@@ -161,6 +163,8 @@ spec:
           env:
             - name: POSTGRES_DB
               value: circleguard
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
@@ -227,6 +231,8 @@ spec:
           env:
             - name: POSTGRES_DB
               value: circleguard
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
