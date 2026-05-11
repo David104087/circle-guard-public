@@ -46,3 +46,24 @@ web-build/
 *_data/
 pgdata/
 neo4jdata/
+
+# Screenshots and images from workshop
+image-*.png
+image.png
+
+# Test reports and outputs
+REPORTE_PIPELINES_RESULTADOS.md
+locust-report.html
+locust-results_*.csv
+dashboard_test_output.txt
+
+# Local JDK
+openjdk.jdk
+
+# File uploads
+services/circleguard-file-service/uploads/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
