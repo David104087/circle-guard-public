@@ -61,7 +61,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 - [ ] **0.1 — GCP project access verified.** Confirm Owner role on the shared GCP project. Run `gcloud auth login`, `gcloud config set project <PROJECT_ID>`, `gcloud projects describe <PROJECT_ID>`.
 - [ ] **0.2 — GCP APIs enabled.** Enable `container`, `compute`, `artifactregistry`, `storage`, `secretmanager`, `cloudresourcemanager`, `iamcredentials`, `dns`, `monitoring`, `logging` APIs (single `gcloud services enable` call).
 - [ ] **0.3 — Terraform service account created.** Service account `terraform-sa@<PROJECT_ID>.iam.gserviceaccount.com` with `roles/editor` and `roles/iam.serviceAccountAdmin`. Key file saved at `~/.gcp/terraform-key.json` (never commit this).
-- [ ] **0.4 — Local tooling installed.** `gcloud`, `terraform >= 1.6`, `kubectl >= 1.28`, `helm >= 3.13`, `istioctl >= 1.22` available on PATH.
+- [x] **0.4 — Local tooling installed.** `gcloud`, `terraform >= 1.6`, `kubectl >= 1.28`, `helm >= 3.13`, `istioctl >= 1.22` available on PATH.
 - [ ] **0.5 — Billing alert configured.** Budget alert at $100 and $200 thresholds on the GCP project.
 - [x] **0.6 — Repo top-level folders created.** Create empty placeholders (with `.gitkeep`) for: `terraform/`, `docs/`, `docs/diagrams/`, `docs/patterns/`, `docs/operations/`, `k8s/monitoring/`, `k8s/istio/`, `tests/security/`.
 - [ ] **0.7 — GitHub Projects board created.** Board "CircleGuard Proyecto Final" with columns Backlog / To Do / In Progress / Review / Done. Created in the fork repo. URL saved in [`docs/agile.md`](docs/agile.md).
