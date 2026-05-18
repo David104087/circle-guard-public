@@ -9,22 +9,335 @@ Project and operational context for AI-assisted development on this repository.
 1. **No AI mentions in git commits.** Never add `Co-Authored-By: Claude`, `Generated with Claude Code`, or any similar line to commit messages or PR descriptions. Commits must appear as normal human commits.
 2. **Only push to the fork.** The working remote is `https://github.com/David104087/circle-guard-public.git`. Never push or open PRs toward the upstream (original) repository.
 3. **Working branch is `master`.** All CI pipelines checkout `master`.
+4. **Update the Implementation Plan as you go.** Every time you complete a task from the "Proyecto Final – Implementation Plan" section below, you MUST flip its checkbox from `- [ ]` to `- [x]` in the same commit/turn that finishes the work. If you only partially complete a task, leave it unchecked and add a `<!-- progress: ... -->` comment under it describing what was done. Never leave plan state stale.
+5. **Read the plan before starting any task.** The plan declares dependencies between phases. Do not start tasks in a later phase if blocking tasks in an earlier phase are still `- [ ]`. If you believe a dependency is wrong, leave a note and ask before proceeding.
 
 ---
 
 ## Project Overview
 
 **Course:** SE5 – Software Engineering 5, Semestre 8
-**Current Assignment:** Proyecto Final IngeSoft V (see `Workshop_statement.md` for full requirements)
+**Current Assignment:** Proyecto Final IngeSoft V (full statement in [`Workshop_statement.md`](Workshop_statement.md))
 **Previous Assignment:** Taller 2: Pruebas y Lanzamiento (completed — tests, pipelines, release notes)
 **Repo (fork):** https://github.com/David104087/circle-guard-public.git
-**Stack:** Spring Boot 3.2.x · Java 21 · Gradle Kotlin DSL · Docker · Jenkins · Kubernetes (GCP/GKE) · Terraform
+**Stack:** Spring Boot 3.2.x · Java 21 · Gradle Kotlin DSL · Docker · Jenkins · Kubernetes (GCP/GKE) · Terraform · Istio
+
+**Bonus selected:** Only **Service Mesh (Istio)**. Multi-Cloud, Chaos Engineering, and FinOps bonuses are explicitly OUT OF SCOPE — do not start work on them.
 
 CircleGuard is a university health-monitoring platform. Six microservices communicate via Kafka and REST.
 
 > **Infrastructure migration:** The project has moved from DigitalOcean to **Google Cloud Platform (GCP)**.
 > The Kubernetes cluster is now GKE. All new `k8s/` manifests and Terraform code target GCP.
-> DigitalOcean kubeconfig references in the old Jenkinsfiles are obsolete.
+> DigitalOcean kubeconfig references in the old Jenkinsfiles are obsolete and must be replaced.
+
+---
+
+# PROYECTO FINAL – IMPLEMENTATION PLAN
+
+This is the authoritative plan. Agents working on the Proyecto Final must follow these phases in order and check off tasks as they finish them.
+
+## How to use this plan
+
+- Each phase has a **Goal**, **Tasks** (checkboxes), **Acceptance criteria**, and **Depends on** dependencies.
+- A task is "done" only when its acceptance criterion is verifiable by another agent reading the repo state.
+- When you finish a task: flip `- [ ]` → `- [x]`. When you finish all tasks in a phase, flip the phase header marker too (see below).
+- If a task turns out to be wrong/unnecessary, do not delete it — strike it through with `~~text~~` and add a one-line note explaining why.
+- Sub-tasks (indented `- [ ]` items) must all be checked before the parent task is checked.
+
+### Phase status legend
+- 🔴 **Not started** — no tasks checked
+- 🟡 **In progress** — at least one task checked, not all
+- 🟢 **Done** — all tasks checked
+
+---
+
+## Phase 0 — Foundation Setup 🔴
+
+**Goal:** Get every prerequisite in place so other phases can execute without blockers.
+**Depends on:** none
+
+### Tasks
+
+- [ ] **0.1 — GCP project access verified.** Confirm Owner role on the shared GCP project. Run `gcloud auth login`, `gcloud config set project <PROJECT_ID>`, `gcloud projects describe <PROJECT_ID>`.
+- [ ] **0.2 — GCP APIs enabled.** Enable `container`, `compute`, `artifactregistry`, `storage`, `secretmanager`, `cloudresourcemanager`, `iamcredentials`, `dns`, `monitoring`, `logging` APIs (single `gcloud services enable` call).
+- [ ] **0.3 — Terraform service account created.** Service account `terraform-sa@<PROJECT_ID>.iam.gserviceaccount.com` with `roles/editor` and `roles/iam.serviceAccountAdmin`. Key file saved at `~/.gcp/terraform-key.json` (never commit this).
+- [ ] **0.4 — Local tooling installed.** `gcloud`, `terraform >= 1.6`, `kubectl >= 1.28`, `helm >= 3.13`, `istioctl >= 1.22` available on PATH.
+- [ ] **0.5 — Billing alert configured.** Budget alert at $100 and $200 thresholds on the GCP project.
+- [ ] **0.6 — Repo top-level folders created.** Create empty placeholders (with `.gitkeep`) for: `terraform/`, `docs/`, `docs/diagrams/`, `docs/patterns/`, `docs/operations/`, `k8s/monitoring/`, `k8s/istio/`, `tests/security/`.
+- [ ] **0.7 — GitHub Projects board created.** Board "CircleGuard Proyecto Final" with columns Backlog / To Do / In Progress / Review / Done. Created in the fork repo. URL saved in [`docs/agile.md`](docs/agile.md).
+- [ ] **0.8 — Branching strategy documented.** Write [`docs/branching.md`](docs/branching.md): GitHub Flow (single `master`, feature branches `feat/...`, fix branches `fix/...`, no long-lived `develop`). Match it to the existing Jenkinsfile triggers.
+- [ ] **0.9 — User stories + acceptance criteria seeded.** At least 8 user stories with acceptance criteria added as GitHub Issues, labeled per phase. Linked from [`docs/agile.md`](docs/agile.md).
+- [ ] **0.10 — Sprint 1 and Sprint 2 defined.** Sprint goals + scope documented in [`docs/agile.md`](docs/agile.md). Sprint 1 = Phases 0–3. Sprint 2 = Phases 4–10.
+
+**Acceptance criteria:**
+- `gcloud config list` shows the correct project.
+- `terraform version`, `kubectl version --client`, `helm version`, `istioctl version --remote=false` all succeed.
+- `docs/agile.md` and `docs/branching.md` exist and reference real Project board + issues.
+
+---
+
+## Phase 1 — Terraform Infrastructure (20% of grade) 🔴
+
+**Goal:** Provision GKE + supporting GCP resources via modular Terraform for dev/stage/prod.
+**Depends on:** Phase 0
+
+### Tasks
+
+- [ ] **1.1 — Remote state backend created.** GCS bucket `circle-guard-tfstate-<suffix>` with versioning enabled. Bucket name written to [`terraform/backend.tf`](terraform/backend.tf).
+- [ ] **1.2 — Module: `terraform/modules/vpc/`.** Inputs: project_id, region, name. Outputs: network, subnet self-links. Creates VPC + single subnet + firewall rules for internal traffic.
+- [ ] **1.3 — Module: `terraform/modules/gke/`.** Inputs: project_id, region, network, subnet, node_count, machine_type. Outputs: cluster name, endpoint, kubeconfig. Regional GKE with 1 node per zone or zonal with N nodes (cheaper). Uses Workload Identity. Includes node autoscaling.
+- [ ] **1.4 — Module: `terraform/modules/artifact_registry/`.** Creates a Docker repo `circleguard` in `us-central1`. Outputs the repo URL.
+- [ ] **1.5 — Module: `terraform/modules/secrets/`.** Creates Secret Manager secrets for DB passwords, JWT secrets, Docker Hub credentials. Iterates over a map variable.
+- [ ] **1.6 — Module: `terraform/modules/iam/`.** ServiceAccounts for: GKE nodes, Jenkins, External Secrets Operator, each microservice (via Workload Identity).
+- [ ] **1.7 — Env `terraform/envs/dev/`.** `main.tf` calls all modules with dev sizing (1–2 nodes, e2-standard-2). `terraform.tfvars` checked in (no secrets). `backend.tf` points to GCS bucket with prefix `envs/dev`.
+- [ ] **1.8 — Env `terraform/envs/stage/`.** Same as dev but stage sizing (2 nodes, e2-standard-2). Prefix `envs/stage`.
+- [ ] **1.9 — Env `terraform/envs/prod/`.** Same but prod sizing (3 nodes, e2-standard-4 or autoscaling 2–5). Prefix `envs/prod`.
+- [ ] **1.10 — `terraform fmt` + `terraform validate` clean.** Run on all envs, no errors.
+- [ ] **1.11 — Dev env applied successfully.** `terraform apply` in `envs/dev/` succeeds. `gcloud container clusters list` shows the cluster.
+- [ ] **1.12 — Stage env applied successfully.** Same as 1.11 for stage.
+- [ ] **1.13 — Prod env applied successfully.** Same as 1.11 for prod.
+- [ ] **1.14 — kubeconfig generated for all 3 envs.** Files `~/.kube/circleguard-dev`, `~/.kube/circleguard-stage`, `~/.kube/circleguard-prod`. `kubectl get nodes` works against each.
+- [ ] **1.15 — Architecture diagram drawn.** [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) with a Mermaid diagram showing VPC → GKE → Pods → External LB. Include all 3 envs.
+- [ ] **1.16 — Terraform README written.** [`terraform/README.md`](terraform/README.md) explaining module layout, how to apply each env, how to destroy.
+
+**Acceptance criteria:**
+- All `terraform/envs/<env>/` directories `terraform plan` cleanly with no diff after apply.
+- Three GKE clusters or three node pools / namespaces are operational.
+- A second developer can read `terraform/README.md` and provision a new env from scratch.
+
+---
+
+## Phase 2 — K8s Migration from DigitalOcean to GKE 🔴
+
+**Goal:** Make existing Kubernetes manifests work on GKE.
+**Depends on:** Phase 1 (cluster must exist)
+
+### Tasks
+
+- [ ] **2.1 — Inventory existing manifests.** List all files under `k8s/`, note what's reusable as-is and what needs GCP-specific tweaks. Output: a checklist in [`docs/operations/k8s-migration.md`](docs/operations/k8s-migration.md).
+- [ ] **2.2 — Update StorageClass references.** Replace DO storage class (`do-block-storage`) with GKE's `standard-rwo` in all PVCs.
+- [ ] **2.3 — Update LoadBalancer Service annotations.** Remove DO-specific annotations; add GKE annotations only where needed (most LBs work without annotations on GKE).
+- [ ] **2.4 — Update Ingress.** Either (a) switch to GKE Ingress with `kubernetes.io/ingress.class: "gce"`, or (b) install nginx-ingress via Helm and keep current Ingress manifests. Pick one and document in `docs/operations/k8s-migration.md`.
+- [ ] **2.5 — Deploy infrastructure to dev.** `kubectl apply -f k8s/00-namespaces.yaml -f k8s/infrastructure/` against the dev cluster. All pods Running within 5 min.
+- [ ] **2.6 — Verify Postgres + databases.** All 5 databases (`circleguard_auth`, `circleguard_dashboard`, `circleguard_form`, `circleguard_promotion`, `circleguard_identity`) created.
+- [ ] **2.7 — Verify Kafka + Zookeeper.** Kafka broker reachable inside cluster. Topics created on first producer connect.
+- [ ] **2.8 — Verify Redis + Neo4j.** Both reachable inside cluster from `promotion-service`.
+- [ ] **2.9 — Deploy services to dev.** `kubectl apply -f k8s/dev/`. All 6 services Running. Pods don't restart > 2 times in first 10 min.
+- [ ] **2.10 — Smoke test in dev.** From inside cluster (`kubectl run --rm -it tester --image=curlimages/curl`): hit each service health endpoint. All return 200.
+- [ ] **2.11 — Repeat 2.5–2.10 for stage env.**
+- [ ] **2.12 — Repeat 2.5–2.10 for prod env.**
+
+**Acceptance criteria:**
+- `kubectl get pods -n circleguard-<env>` shows all services Running in all 3 envs.
+- A health-check script ([`ci/smoke-test.sh`](ci/smoke-test.sh)) passes against each env.
+
+---
+
+## Phase 3 — Service Mesh (Istio) BONUS 🔴
+
+**Goal:** Install Istio, secure all service-to-service comms with mTLS, set up traffic management for canary, observability via Kiali + Jaeger.
+**Depends on:** Phase 2 (services deployed)
+
+> **Why this is in the main plan, not "bonus extras":** Istio fundamentally changes how pods communicate (sidecar injection). Adding it after Phases 4–10 are done would require redeploying everything and re-tuning probes/timeouts. Doing it now also means **Istio's circuit breaker** satisfies the Design Pattern requirement (Phase 5) and **Istio mTLS** satisfies most of the Security TLS requirement (Phase 8).
+
+### Tasks
+
+- [ ] **3.1 — Install Istio in dev.** `istioctl install --set profile=demo -y` against dev cluster. Verify control plane pods Running in `istio-system`.
+- [ ] **3.2 — Enable sidecar injection on circleguard-dev.** Label namespace `istio-injection=enabled`. Restart all deployments. Each pod should now have 2 containers (app + envoy).
+- [ ] **3.3 — Enforce STRICT mTLS in dev.** Apply `PeerAuthentication` resource setting `mtls.mode: STRICT` for the namespace.
+- [ ] **3.4 — Verify mTLS.** From inside one pod, attempt a plain HTTP call without sidecar — must fail. With sidecar — must succeed. Document in [`docs/operations/istio-verification.md`](docs/operations/istio-verification.md).
+- [ ] **3.5 — Install Kiali + Jaeger + Prometheus + Grafana addons.** `kubectl apply -f samples/addons/` from istio dist. (Note: this Prometheus/Grafana are minimal; Phase 7 will replace/extend them.)
+- [ ] **3.6 — Create VirtualService + DestinationRule per service.** One pair per microservice in [`k8s/istio/`](k8s/istio/) covering all 6 services.
+- [ ] **3.7 — Configure Circuit Breaker in DestinationRule.** `connectionPool` + `outlierDetection` (5xx threshold, ejection time) on every service.
+- [ ] **3.8 — Configure Retry Policy in VirtualService.** Retry on `5xx, gateway-error, connect-failure` for idempotent endpoints. Document which endpoints get retries in [`docs/patterns/resilience.md`](docs/patterns/resilience.md).
+- [ ] **3.9 — Install Ingress Gateway.** Replace nginx/GCE Ingress with Istio Gateway + VirtualService for external traffic. Allocate a single GCP external IP.
+- [ ] **3.10 — Set up canary traffic split structure.** For one service (start with `auth-service`), define two `subsets` (v1, v2) in DestinationRule. VirtualService routes 90/10. Document the workflow in [`docs/operations/canary-deployments.md`](docs/operations/canary-deployments.md).
+- [ ] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 6 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
+- [ ] **3.12 — Repeat 3.1–3.11 for stage env.**
+- [ ] **3.13 — Repeat 3.1–3.11 for prod env.**
+- [ ] **3.14 — Service Mesh documentation.** [`docs/patterns/service-mesh.md`](docs/patterns/service-mesh.md): what is implemented, why Istio over Linkerd, mTLS strategy, traffic management approach, links to Kiali screenshots.
+
+**Acceptance criteria:**
+- `kubectl get peerauthentication -A` shows STRICT mode in all 3 envs.
+- Kiali graph shows mTLS (lock icon) on every edge.
+- A canary deployment can be triggered manually by adjusting weight in the VirtualService and observed in Kiali.
+
+---
+
+## Phase 4 — CI/CD Avanzado (15% of grade) 🔴
+
+**Goal:** Enhanced pipelines with SonarQube, Trivy, semver, notifications, prod approval, canary via Istio.
+**Depends on:** Phase 2 (deployment must work), Phase 3 (canary integration)
+
+### Tasks
+
+- [ ] **4.1 — Update Jenkins credentials for GCP.** Add `gcp-service-account-key` (SecretFile, JSON key). Replace DO `kubeconfig-dev/stage/production` with GKE-generated kubeconfigs.
+- [ ] **4.2 — Add SonarQube stage.** Run SonarQube as a Docker container locally (or via Helm in cluster). Add stage to Jenkinsfile.dev/stage/master running `./gradlew sonar`. Quality gate must pass to continue.
+- [ ] **4.3 — SonarQube project configured per service.** 6 projects, one per microservice. `sonar-project.properties` or Gradle config in each.
+- [ ] **4.4 — Add Trivy stage.** After Docker build, run `trivy image --severity HIGH,CRITICAL --exit-code 1` against each image. Fails pipeline on HIGH/CRITICAL.
+- [ ] **4.5 — Semantic versioning script.** [`ci/semver.sh`](ci/semver.sh) reads conventional commits since last tag, decides patch/minor/major, creates git tag, outputs version. Used by master pipeline.
+- [ ] **4.6 — Notifications on failure.** Pipeline `post { failure { ... } }` posts to a Slack webhook OR sends an email via SMTP. Credentials in Jenkins. Document setup in [`docs/operations/notifications.md`](docs/operations/notifications.md).
+- [ ] **4.7 — Canary deployment stage.** In master pipeline, deploy new version as `v2` subset, set VirtualService to 10% traffic. Pipeline waits (timeout 30 min) for a manual approval to flip to 100%. Rollback on failure.
+- [ ] **4.9 — Pipeline runs end-to-end.** Trigger dev pipeline manually; passes from Checkout to Deploy.
+- [ ] **4.10 — Master pipeline runs end-to-end including canary.** Trigger master, see canary at 10%, approve, see 100%.
+
+**Acceptance criteria:**
+- All 3 Jenkinsfiles updated, no DO references remain.
+- SonarQube + Trivy stages green for the current codebase.
+- A failure in any service test triggers a Slack/email notification with the failing stage in the message.
+
+---
+
+## Phase 5 — Design Patterns (10% of grade) 🔴
+
+**Goal:** Document existing patterns, implement 3 new patterns (one resilience, one config, one extra).
+**Depends on:** Phase 3 (Istio gives us the resilience pattern for free)
+
+### Tasks
+
+- [ ] **5.1 — Identify existing patterns.** Read all 6 services. Document each pattern found (API Gateway, Database per Service, Event-Driven via Kafka, JWT auth, k-anonymity privacy filter, etc.) in [`docs/patterns/existing.md`](docs/patterns/existing.md). At least 5 patterns documented with file references.
+- [ ] **5.2 — Resilience pattern: Circuit Breaker + Retry (Istio).** Already implemented in Phase 3.7/3.8. Documented in [`docs/patterns/resilience.md`](docs/patterns/resilience.md). Just verify the doc explains *why* + *benefit*.
+- [ ] **5.3 — Configuration pattern: External Configuration.** Move all `application.yml` secrets to GCP Secret Manager via External Secrets Operator (ESO). Install ESO in each cluster. Create `ExternalSecret` resources that sync from Secret Manager → K8s Secrets. Services mount those secrets.
+- [ ] **5.4 — Third pattern: Sidecar (Istio envoy proxy).** Already implemented in Phase 3 via Istio sidecar injection. Document in [`docs/patterns/sidecar.md`](docs/patterns/sidecar.md): the sidecar offloads cross-cutting concerns (mTLS, retries, metrics) from application code.
+- [ ] **5.5 — Patterns master document.** [`docs/patterns/README.md`](docs/patterns/README.md) lists all documented patterns (existing + new) with one-paragraph summaries and links.
+
+**Acceptance criteria:**
+- Three new patterns implemented with code/config in the repo (not just docs).
+- Each pattern has a doc with purpose + benefit + tradeoffs + code references.
+
+---
+
+## Phase 6 — Testing Enhancement (15% of grade) 🔴
+
+**Goal:** Coverage reports, security tests (OWASP ZAP), pipeline integration.
+**Depends on:** Phase 4 (pipeline must accept new stages)
+
+### Tasks
+
+- [ ] **6.1 — Inventory existing tests from Taller 2.** Already in [`docs/operations/test-inventory.md`](docs/operations/test-inventory.md) (create if missing). Confirm Unit / Integration / E2E / Locust counts.
+- [ ] **6.2 — JaCoCo enabled in every service.** Add `jacoco` plugin in each service's `build.gradle.kts`. Configure `jacocoTestReport` to depend on `test`.
+- [ ] **6.3 — Aggregate coverage report.** Root Gradle task `aggregateCoverageReport` produces a unified HTML+XML report across all services in `build/reports/jacoco-aggregate/`.
+- [ ] **6.4 — Coverage stage in pipeline.** Add stage publishing JaCoCo XML to Jenkins (JaCoCo plugin). Fails if line coverage < 60% (or another agreed threshold — document in [`docs/operations/coverage-policy.md`](docs/operations/coverage-policy.md)).
+- [ ] **6.5 — OWASP ZAP test scripts.** Create [`tests/security/zap-baseline.sh`](tests/security/zap-baseline.sh) — wraps `zaproxy/zap-stable` Docker image to run baseline scan against dev environment public endpoints.
+- [ ] **6.6 — ZAP integrated in pipeline.** Add a `Security Tests` stage in stage Jenkinsfile (post-deploy) that runs ZAP baseline. Publishes report to Jenkins. Non-blocking initially (`|| true`); document graduation criteria in [`docs/operations/security-tests.md`](docs/operations/security-tests.md).
+- [ ] **6.7 — Locust adapted to GKE.** Update `tests/performance/locustfile.py` host references. Add a `Performance Tests` stage in stage pipeline (optional — can be manual).
+- [ ] **6.8 — Test report publishing.** Jenkins shows: JUnit results, JaCoCo coverage trend, SonarQube quality gate, ZAP findings, Locust HTML report (archived).
+
+**Acceptance criteria:**
+- Coverage report exists and pipeline publishes it.
+- ZAP scan runs in pipeline against dev and uploads an artifact.
+- All Taller 2 tests still pass in the new pipeline.
+
+---
+
+## Phase 7 — Observabilidad y Monitoreo (10% of grade) 🔴
+
+**Goal:** Full observability stack: metrics (Prometheus/Grafana), logs (ELK), traces (Jaeger), alerts, business metrics.
+**Depends on:** Phase 2 (deployed services), Phase 3 (Istio already gives us baseline metrics + traces)
+
+### Tasks
+
+- [ ] **7.1 — kube-prometheus-stack installed via Helm.** Includes Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics. Installed in `monitoring` namespace per env. Manifests/values in [`k8s/monitoring/`](k8s/monitoring/).
+- [ ] **7.2 — Spring Boot Actuator + Micrometer Prometheus exposed.** Each service exposes `/actuator/prometheus`. ServiceMonitor CRDs in `k8s/monitoring/servicemonitors.yaml`.
+- [ ] **7.3 — Per-service Grafana dashboard.** 6 dashboards (one per service) showing: request rate, error rate, p50/p95/p99 latency, JVM heap, GC pauses. JSON saved to [`k8s/monitoring/dashboards/`](k8s/monitoring/dashboards/).
+- [ ] **7.4 — Istio mesh dashboard.** Import Istio's standard Grafana dashboards (mesh, services, workloads).
+- [ ] **7.5 — Alerting rules.** PrometheusRule CRDs for: pod restart loop, p95 latency > 1s, error rate > 5%, JVM heap > 90%, PVC > 85% full. Document each rule in [`docs/operations/alerts.md`](docs/operations/alerts.md).
+- [ ] **7.6 — Alertmanager wired to Slack/email.** Same channel as pipeline notifications.
+- [ ] **7.7 — ELK Stack installed.** Elasticsearch + Logstash + Kibana via ECK operator or Bitnami Helm chart. In `logging` namespace.
+- [ ] **7.8 — Filebeat or Fluent Bit deployed as DaemonSet.** Ships container logs to Elasticsearch.
+- [ ] **7.9 — Kibana index pattern + saved searches.** Index `circleguard-*`. Saved searches per service. Dashboard for "errors by service in last 1h".
+- [ ] **7.10 — Jaeger / distributed tracing.** Istio already emits spans. Install Jaeger backend (operator or in-memory for dev). Verify traces visible in Jaeger UI.
+- [ ] **7.11 — Trace propagation in services.** Add OpenTelemetry / Sleuth + Brave dependency. Ensure trace IDs propagate across HTTP + Kafka. Verify multi-service traces (form-service → Kafka → notification-service) visible in Jaeger.
+- [ ] **7.12 — Health probes audited.** Every Deployment has `livenessProbe` and `readinessProbe` set. Probes hit `/actuator/health/liveness` and `/actuator/health/readiness`.
+- [ ] **7.13 — Business metrics implemented.** Each service exposes at least 1 business metric via Micrometer (e.g., `surveys_submitted_total`, `files_uploaded_total`, `notifications_sent_total`). Visible in Grafana dashboard.
+- [ ] **7.14 — Observability runbook.** [`docs/operations/observability.md`](docs/operations/observability.md): how to access each tool, where logs vs metrics vs traces live, common queries.
+
+**Acceptance criteria:**
+- `kubectl get pods -n monitoring` and `-n logging` all Running.
+- Grafana shows all 6 services in dashboards with non-zero data.
+- Triggering a 500 in any service produces: a log in Kibana, a span in Jaeger, a spike in Grafana, and (if sustained) an Alertmanager alert.
+
+---
+
+## Phase 8 — Seguridad (5% of grade) 🔴
+
+**Goal:** Secrets management, RBAC, TLS for public services, continuous vuln scanning.
+**Depends on:** Phase 3 (mTLS already done for internal traffic), Phase 4 (Trivy already done)
+
+### Tasks
+
+- [ ] **8.1 — External Secrets Operator installed.** (Already partially in Phase 5.3.) Verify ESO is running in all 3 envs. ServiceAccounts use Workload Identity to access Secret Manager.
+- [ ] **8.2 — All `Secret` resources sourced from Secret Manager.** No plaintext secrets in `k8s/dev/`, `k8s/stage/`, `k8s/production/`. Replace with `ExternalSecret`.
+- [ ] **8.3 — RBAC manifests per service.** Each microservice has its own ServiceAccount + Role + RoleBinding granting only what it needs (typically: read its own ConfigMap/Secret). In `k8s/<env>/rbac/`.
+- [ ] **8.4 — NetworkPolicy or Istio AuthorizationPolicy.** Default-deny + explicit allows per service-to-service edge that should exist. Document allowed edges in [`docs/operations/network-policies.md`](docs/operations/network-policies.md).
+- [ ] **8.5 — cert-manager installed.** Helm install. ClusterIssuer for Let's Encrypt (HTTP-01 or DNS-01 challenge).
+- [ ] **8.6 — TLS on Istio ingress gateway.** Certificate issued by cert-manager, used by Gateway resource. Public-facing endpoints serve HTTPS.
+- [ ] **8.7 — Continuous vuln scan.** Schedule a daily Jenkins job running `trivy image` against deployed images. Sends report to Slack.
+- [ ] **8.8 — Security review document.** [`docs/operations/security.md`](docs/operations/security.md): threat model summary, mitigations in place, what's not covered.
+
+**Acceptance criteria:**
+- `grep -rE "password:|secret:" k8s/` returns no plaintext values (only references to `ExternalSecret` or Secret Manager keys).
+- `curl -k` to an internal service from outside the mesh fails (NetworkPolicy/AuthZ block).
+- A public service URL serves a valid Let's Encrypt cert.
+
+---
+
+## Phase 9 — Change Management & Release Notes (5% of grade) 🔴
+
+**Goal:** Formal CM process, automated release notes, rollback plans, release tagging.
+**Depends on:** Phase 4 (semver script already exists)
+
+### Tasks
+
+- [ ] **9.1 — Update `ci/release-notes.sh`.** Read commits since last semver tag, group by Conventional Commit type (feat/fix/chore/...), generate `RELEASE_NOTES_<version>.md`. Already exists from Taller 2 — extend it.
+- [ ] **9.2 — Auto-attach release notes to GitHub Release.** Pipeline step uses `gh release create <tag> --notes-file RELEASE_NOTES_<tag>.md`.
+- [ ] **9.3 — Change Management process document.** [`docs/operations/change-management.md`](docs/operations/change-management.md): who can request a change, who approves, what gates exist (SonarQube, Trivy, manual approval), how rollback is triggered.
+- [ ] **9.4 — Rollback runbook per service.** [`docs/operations/rollback.md`](docs/operations/rollback.md): exact commands for `kubectl rollout undo deployment/<svc> -n circleguard-production` plus Istio VirtualService weight reversal for canary failures.
+- [ ] **9.5 — Release tagging convention.** Tags follow `vMAJOR.MINOR.PATCH`. Documented in [`docs/operations/versioning.md`](docs/operations/versioning.md). Pipeline rejects manual tags that violate the convention.
+
+**Acceptance criteria:**
+- Cutting a release produces a GitHub Release with parsed notes.
+- A drill (deploy bad image → rollback) is documented with timing in `docs/operations/rollback.md`.
+
+---
+
+## Phase 10 — Documentación, Costos y Presentación (10% of grade) 🔴
+
+**Goal:** Final docs, cost analysis, video demo, presentation.
+**Depends on:** all previous phases
+
+### Tasks
+
+- [ ] **10.1 — Architecture diagrams.** [`docs/diagrams/`](docs/diagrams/) contains: system-level (services + infra), deployment view (GKE + namespaces), data flow (auth → form → kafka → notification), Istio mesh view. Mermaid preferred.
+- [ ] **10.2 — README.md updated.** Top-level [`README.md`](README.md) explains: what is CircleGuard, how to provision (link to terraform/README), how to deploy (link to k8s docs), how to develop, how to run tests, how to access dashboards.
+- [ ] **10.3 — Operations manual.** [`docs/operations/README.md`](docs/operations/README.md) indexes all operational docs (alerts, rollback, notifications, network policies, etc.).
+- [ ] **10.4 — Cost analysis.** [`docs/operations/costs.md`](docs/operations/costs.md): monthly cost estimate per environment based on actual GCP billing data. Suggestions to lower costs (e.g., shut down stage at night, use preemptible nodes).
+- [ ] **10.5 — Test results analysis.** [`docs/operations/test-results.md`](docs/operations/test-results.md): summary of last successful master pipeline — unit/integration/E2E counts, coverage %, Locust p95/rps, ZAP findings.
+- [ ] **10.6 — Release notes consolidated.** Index of all `RELEASE_NOTES_*.md` files in [`docs/releases/README.md`](docs/releases/README.md).
+- [ ] **10.7 — Video demo script.** [`docs/presentation/video-script.md`](docs/presentation/video-script.md): minute-by-minute script of the 20–30 min demo: architecture → CI/CD demo → app demo → dashboards → performance results → lessons learned.
+- [ ] **10.8 — Final presentation slides.** [`docs/presentation/slides.md`](docs/presentation/slides.md) or a Gamma/Slides link. Same structure as the video.
+- [ ] **10.9 — Lessons learned doc.** [`docs/lessons-learned.md`](docs/lessons-learned.md): what worked, what didn't, what we'd change.
+
+**Acceptance criteria:**
+- A new developer can clone the repo, read README.md, and provision + deploy without asking questions.
+- Every required deliverable from `Workshop_statement.md` § "Entregables" maps to a file or link in `docs/`.
+
+---
+
+## Out-of-scope (do not work on)
+
+The following bonus tracks from `Workshop_statement.md` are explicitly OUT OF SCOPE for this implementation:
+- ❌ Implementación Multi-Cloud
+- ❌ Chaos Engineering
+- ❌ FinOps
+
+Service Mesh **is** in scope (see Phase 3).
+
+---
+
+# OPERATIONAL REFERENCE
+
+Everything below this line is reference material for executing tasks above. It is not part of the plan.
 
 ---
 
@@ -43,31 +356,32 @@ Docker Hub image prefix: `davidartunduaga/circleguard-{auth,dashboard,file,form,
 
 ---
 
-## Infrastructure
-
-### Cloud Provider: Google Cloud Platform (GCP)
+## Cloud Provider: Google Cloud Platform (GCP)
 
 - **Project:** TBD (classmate's GCP project — get Owner role on it)
 - **Region:** `us-central1` (preferred for cost)
 - **Kubernetes:** GKE (Google Kubernetes Engine)
 - **Namespaces:** `circleguard-dev`, `circleguard-stage`, `circleguard-production`
 - **Terraform state backend:** GCS bucket (`gs://circle-guard-tfstate-XXXXX/`)
-- **Container registry:** Artifact Registry (GCP) or Docker Hub (already configured)
-- **Secrets:** GCP Secret Manager
+- **Container registry:** Artifact Registry (GCP) — or Docker Hub for backward compatibility
+- **Secrets:** GCP Secret Manager (via External Secrets Operator)
 - **Local kubeconfig:** `~/.kube/config` (generated via `gcloud container clusters get-credentials`)
 
-#### GCP APIs required
+### GCP APIs required
 ```
-container.googleapis.com        # GKE
-compute.googleapis.com          # VMs, Load Balancers
-artifactregistry.googleapis.com # Container images
-storage.googleapis.com          # GCS / Terraform state
-secretmanager.googleapis.com    # Secrets
+container.googleapis.com
+compute.googleapis.com
+artifactregistry.googleapis.com
+storage.googleapis.com
+secretmanager.googleapis.com
 cloudresourcemanager.googleapis.com
 iamcredentials.googleapis.com
+dns.googleapis.com
+monitoring.googleapis.com
+logging.googleapis.com
 ```
 
-#### Terraform Service Account setup
+### Terraform Service Account setup
 ```bash
 gcloud iam service-accounts create terraform-sa \
   --display-name="Terraform Service Account" --project=PROJECT_ID
@@ -76,11 +390,14 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
   --member="serviceAccount:terraform-sa@PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/editor"
 
-gcloud iam service-accounts keys create ~/terraform-key.json \
+gcloud iam service-accounts keys create ~/.gcp/terraform-key.json \
   --iam-account=terraform-sa@PROJECT_ID.iam.gserviceaccount.com
 ```
 
-### Jenkins (local Docker container — unchanged from Taller 2)
+---
+
+## Jenkins (local Docker container — unchanged from Taller 2)
+
 - **Container name:** `circleguard-jenkins`
 - **Image:** `circleguard-jenkins:local` (built from `ci/Dockerfile.jenkins`)
 - **Ports:** 8080 (UI), 50000 (agent)
@@ -90,7 +407,7 @@ gcloud iam service-accounts keys create ~/terraform-key.json \
 - **Start command:** `docker start circleguard-jenkins`
 - **Rebuild image:** `docker build -t circleguard-jenkins:local -f ci/Dockerfile.jenkins ci/`
 
-### Jenkins Credentials (update kubeconfig credentials to GKE)
+### Jenkins Credentials (target state after Phase 4)
 | ID | Type | Purpose |
 |----|------|---------|
 | `dockerhub-credentials` | UsernamePassword | Docker Hub login (`davidartunduaga`) |
@@ -99,30 +416,34 @@ gcloud iam service-accounts keys create ~/terraform-key.json \
 | `kubeconfig-dev` | FileCredentials | GKE kubeconfig for dev namespace |
 | `kubeconfig-stage` | FileCredentials | GKE kubeconfig for stage namespace |
 | `kubeconfig-production` | FileCredentials | GKE kubeconfig for production namespace |
+| `slack-webhook` | SecretText | Slack notifications |
+| `sonarqube-token` | SecretText | SonarQube authentication |
 
 To update kubeconfig credentials after cluster creation:
 ```bash
 gcloud container clusters get-credentials CLUSTER_NAME --region us-central1 --project PROJECT_ID
 docker cp ~/.kube/config circleguard-jenkins:/tmp/kube_for_jenkins.yaml
 ```
-Then use the Jenkins Groovy Script Console (same script as before) to update `kubeconfig-dev/stage/production`.
+Then use the Jenkins Groovy Script Console (same script as Taller 2) to update `kubeconfig-dev/stage/production`.
 
 ---
 
-## Terraform Layout (Proyecto Final)
+## Terraform Layout (target state)
 
 ```
 terraform/
   modules/
-    gke/          # GKE cluster definition
-    vpc/          # VPC, subnets, firewall rules
-    gcs/          # Buckets (Terraform state, file-service storage)
-    dns/          # Cloud DNS (optional)
+    vpc/                  # VPC, subnets, firewall
+    gke/                  # GKE cluster + node pools
+    artifact_registry/    # Docker repo
+    secrets/              # Secret Manager secrets
+    iam/                  # Service accounts + Workload Identity
   envs/
-    dev/          # dev.tfvars + main.tf calling modules
-    stage/        # stage.tfvars + main.tf
-    prod/         # prod.tfvars + main.tf
-  backend.tf      # GCS remote state config
+    dev/                  # Calls modules with dev sizing
+    stage/                # Same with stage sizing
+    prod/                 # Same with prod sizing
+  backend.tf              # GCS remote state config
+  README.md               # How to apply / destroy
 ```
 
 ---
@@ -135,21 +456,11 @@ terraform/
 | STAGE | `ci/Jenkinsfile.stage` | `circleguard-stage` | push to main / manual |
 | MASTER | `ci/Jenkinsfile.master` | `circleguard-master` | manual / tag |
 
-### DEV pipeline stages
+### DEV pipeline stages (current — Taller 2)
 1. Checkout → 2. Build All Services → 3. Setup Docker Proxy → 4. Unit Tests (parallel, 6 services) → 5. Docker Build & Push → 6. Deploy to K8s DEV
 
-### STAGE pipeline stages
-1. Checkout → 2. Build → 3. Docker Proxy → 4. Unit Tests → 5. Integration Tests → 6. Docker Push → 7. Deploy to K8s STAGE
-
-### MASTER pipeline stages
-1. Checkout → 2. Build → 3. Docker Proxy → 4. Unit Tests → 5. Integration Tests → 6. E2E Tests → 7. Docker Push → 8. Deploy to K8s PRODUCTION → 9. Generate Release Notes
-
-### Proyecto Final additions to pipelines
-- SonarQube analysis stage (after build)
-- Trivy vulnerability scan stage (after Docker build)
-- Semantic versioning (auto-tag via `ci/semver.sh`)
-- Slack/email notifications on failure
-- Manual approval gate before PRODUCTION deploy
+### Target stages after Phase 4 (Proyecto Final)
+1. Checkout → 2. Build → 3. SonarQube scan → 4. Docker Proxy → 5. Unit Tests → 6. Integration Tests (stage+master only) → 7. E2E Tests (master only) → 8. Docker Build & Trivy scan → 9. Docker Push → 10. Deploy to GKE → 11. (master only) Canary 10% → 100% → 12. Release Notes (master only)
 
 To trigger a build from the CLI:
 ```bash
@@ -220,16 +531,13 @@ File: `tests/performance/locustfile.py`
 
 Results from Taller 2: 2,558 requests, 21.77 RPS, 230ms median, 0% failure rate on all endpoints except GET /surveys/pending (to be investigated).
 
-### New for Proyecto Final: Security Tests (OWASP ZAP)
-To be added in `tests/security/`. Run against dev environment after deployment.
-
 ### Release Notes
 Script: `ci/release-notes.sh <VERSION_TAG>`
-Runs automatically in the MASTER pipeline. Generates `RELEASE_NOTES_<tag>.md` from git log since last tag.
+Runs automatically in the MASTER pipeline. Generates `RELEASE_NOTES_<tag>.md` from git log since last tag. To be extended in Phase 9.
 
 ---
 
-## K8s Manifests Layout
+## K8s Manifests Layout (target state)
 
 ```
 k8s/
@@ -238,11 +546,14 @@ k8s/
   dev/                        # Per-service Deployment+Service+ConfigMap+Secret for dev
   stage/                      # Same for stage
   production/                 # Same for production
-  monitoring/                 # Prometheus, Grafana, ELK, Jaeger (Proyecto Final)
+  istio/                      # Gateway, VirtualService, DestinationRule, PeerAuthentication (Phase 3)
+  monitoring/                 # Prometheus, Grafana, Alertmanager + dashboards (Phase 7)
+  logging/                    # Elasticsearch, Logstash, Kibana, Filebeat (Phase 7)
+  rbac/                       # ServiceAccounts + Roles + Bindings per service (Phase 8)
 ```
 
 Infrastructure manifests cover both dev and stage namespaces (resources are namespace-scoped).
 Production manifests in `k8s/production/` are applied by the MASTER pipeline.
 
 > GKE-specific: LoadBalancer Services get a GCP external IP automatically.
-> Ingress uses `kubernetes.io/ingress.class: "gce"` annotation instead of nginx (unless nginx ingress controller is installed).
+> Istio Gateway replaces direct Ingress once Phase 3 is complete.

@@ -39,7 +39,6 @@ Implementar todos los microservicios de la arquitectura e integrándolos en un e
 - Implementar Trivy para escaneo de vulnerabilidades en contenedores
 - Implementar versionado semántico automático
 - Configurar notificaciones automáticas para fallos en la pipeline
-- Implementar aprobaciones para despliegues a producción
 
 ---
 
