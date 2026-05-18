@@ -3,7 +3,7 @@
 ## GitHub Projects Board
 
 **Board:** CircleGuard Proyecto Final
-**URL:** <!-- TO BE UPDATED after task 0.7 completes (requires `project` gh scope) -->
+**URL:** https://github.com/users/David104087/projects/1
 **Columns:** Backlog · To Do · In Progress · Review · Done
 **Repository:** https://github.com/David104087/circle-guard-public
 

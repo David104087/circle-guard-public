@@ -51,21 +51,21 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 0 — Foundation Setup 🔴
+## Phase 0 — Foundation Setup 🟡
 
 **Goal:** Get every prerequisite in place so other phases can execute without blockers.
 **Depends on:** none
 
 ### Tasks
 
-- [ ] **0.1 — GCP project access verified.** Confirm Owner role on the shared GCP project. Run `gcloud auth login`, `gcloud config set project <PROJECT_ID>`, `gcloud projects describe <PROJECT_ID>`.
-- [ ] **0.2 — GCP APIs enabled.** Enable `container`, `compute`, `artifactregistry`, `storage`, `secretmanager`, `cloudresourcemanager`, `iamcredentials`, `dns`, `monitoring`, `logging` APIs (single `gcloud services enable` call).
-- [ ] **0.3 — Terraform service account created.** Service account `terraform-sa@<PROJECT_ID>.iam.gserviceaccount.com` with `roles/editor` and `roles/iam.serviceAccountAdmin`. Key file saved at `~/.gcp/terraform-key.json` (never commit this).
+- [x] **0.1 — GCP project access verified.** Confirm Owner role on the shared GCP project. Run `gcloud auth login`, `gcloud config set project <PROJECT_ID>`, `gcloud projects describe <PROJECT_ID>`.
+- [x] **0.2 — GCP APIs enabled.** Enable `container`, `compute`, `artifactregistry`, `storage`, `secretmanager`, `cloudresourcemanager`, `iamcredentials`, `dns`, `monitoring`, `logging` APIs (single `gcloud services enable` call).
+- [x] **0.3 — Terraform service account created.** Service account `terraform-sa@<PROJECT_ID>.iam.gserviceaccount.com` with `roles/editor` and `roles/iam.serviceAccountAdmin`. Key file saved at `~/.gcp/terraform-key.json` (never commit this).
 - [x] **0.4 — Local tooling installed.** `gcloud`, `terraform >= 1.6`, `kubectl >= 1.28`, `helm >= 3.13`, `istioctl >= 1.22` available on PATH.
 - [ ] **0.5 — Billing alert configured.** Budget alert at $100 and $200 thresholds on the GCP project.
+<!-- progress: billingbudgets.googleapis.com enabled; `gcloud billing budgets create` fails with 403 because dartunduagapenagos@gmail.com lacks roles/billing.admin on billing account 019044-EE5C1C-F61E8F. Must be created manually in GCP Console → Billing → Budgets & Alerts, or ask the billing account owner to grant billing.admin. -->
 - [x] **0.6 — Repo top-level folders created.** Create empty placeholders (with `.gitkeep`) for: `terraform/`, `docs/`, `docs/diagrams/`, `docs/patterns/`, `docs/operations/`, `k8s/monitoring/`, `k8s/istio/`, `tests/security/`.
-- [ ] **0.7 — GitHub Projects board created.** Board "CircleGuard Proyecto Final" with columns Backlog / To Do / In Progress / Review / Done. Created in the fork repo. URL saved in [`docs/agile.md`](docs/agile.md).
-<!-- progress: gh token missing `project` scope. Run `gh auth refresh -s project,read:project` and re-run to complete. Issues created, agile.md placeholder ready. -->
+- [x] **0.7 — GitHub Projects board created.** Board "CircleGuard Proyecto Final" with columns Backlog / To Do / In Progress / Review / Done. Created in the fork repo. URL saved in [`docs/agile.md`](docs/agile.md).
 - [x] **0.8 — Branching strategy documented.** Write [`docs/branching.md`](docs/branching.md): GitHub Flow (single `master`, feature branches `feat/...`, fix branches `fix/...`, no long-lived `develop`). Match it to the existing Jenkinsfile triggers.
 - [x] **0.9 — User stories + acceptance criteria seeded.** At least 8 user stories with acceptance criteria added as GitHub Issues, labeled per phase. Linked from [`docs/agile.md`](docs/agile.md).
 - [x] **0.10 — Sprint 1 and Sprint 2 defined.** Sprint goals + scope documented in [`docs/agile.md`](docs/agile.md). Sprint 1 = Phases 0–3. Sprint 2 = Phases 4–10.
