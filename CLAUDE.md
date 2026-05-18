@@ -11,6 +11,10 @@ Project and operational context for AI-assisted development on this repository.
 3. **Working branch is `master`.** All CI pipelines checkout `master`.
 4. **Update the Implementation Plan as you go.** Every time you complete a task from the "Proyecto Final – Implementation Plan" section below, you MUST flip its checkbox from `- [ ]` to `- [x]` in the same commit/turn that finishes the work. If you only partially complete a task, leave it unchecked and add a `<!-- progress: ... -->` comment under it describing what was done. Never leave plan state stale.
 5. **Read the plan before starting any task.** The plan declares dependencies between phases. Do not start tasks in a later phase if blocking tasks in an earlier phase are still `- [ ]`. If you believe a dependency is wrong, leave a note and ask before proceeding.
+6. **Session lifecycle — run the scripts automatically.**
+   - When the user says they are **done working** for the day (e.g. "terminamos", "nos vemos mañana", "hasta aquí por hoy", "cerramos la sesión") → immediately run `./ci/session-stop.sh` via the Bash tool before responding. Do not wait to be asked.
+   - When the user says they are **starting a session** (e.g. "empezamos", "vamos a trabajar", "arrancamos", "buenos días") → immediately run `./ci/session-start.sh` via the Bash tool before responding. Do not wait to be asked.
+   - These scripts manage GCP costs. Running them is mandatory, not optional.
 
 ---
 
