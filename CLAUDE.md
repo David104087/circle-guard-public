@@ -8,7 +8,7 @@ Project and operational context for AI-assisted development on this repository.
 
 1. **No AI mentions in git commits.** Never add `Co-Authored-By: Claude`, `Generated with Claude Code`, or any similar line to commit messages or PR descriptions. Commits must appear as normal human commits.
 2. **Only push to the fork.** The working remote is `https://github.com/David104087/circle-guard-public.git`. Never push or open PRs toward the upstream (original) repository.
-3. **Working branch is `master`.** All CI pipelines checkout `master`.
+3. CircleGuard follows **GitHub Flow**, the principal branch is master.
 4. **Update the Implementation Plan as you go.** Every time you complete a task from the "Proyecto Final – Implementation Plan" section below, you MUST flip its checkbox from `- [ ]` to `- [x]` in the same commit/turn that finishes the work. If you only partially complete a task, leave it unchecked and add a `<!-- progress: ... -->` comment under it describing what was done. Never leave plan state stale.
 5. **Read the plan before starting any task.** The plan declares dependencies between phases. Do not start tasks in a later phase if blocking tasks in an earlier phase are still `- [ ]`. If you believe a dependency is wrong, leave a note and ask before proceeding.
 6. **Session lifecycle — run the scripts automatically.**
@@ -17,6 +17,8 @@ Project and operational context for AI-assisted development on this repository.
    - These scripts manage GCP costs. Running them is mandatory, not optional.
 7. **Read `docs/operations/current-state.md` at the start of every session.** That file is the live record of what is actually deployed, which clusters exist, and which phases are complete. Update it whenever you deploy, destroy, or change infrastructure. It exists precisely so that context compaction and new agents don't lose track of the real system state.
 8. **Document every error and its fix.** Whenever you encounter a bug, compatibility issue, or unexpected behavior and find the fix, you MUST add it to the `## Known Issues & Lessons Learned` section at the bottom of this file in the same turn. Future agents (and you in a new conversation) must not repeat the same mistake. Format: `### <short title>` + context + root cause + fix.
+9. **Document important decisions and changes.** Whenever you make a significant architectural decision, add a new tool/technology, change a pipeline, modify the Istio config, or do anything that a future agent would need to know to avoid confusion, write it down — either directly in this file (under a new section if needed) or in a `docs/operations/` file that is referenced from here. The goal: context compaction must never cause the loss of critical operational knowledge. Key things to always record: new credentials needed in Jenkins, new shell commands for cluster management, changes to `k8s/` that affect how pipelines run, and any decision that is not obvious from reading the code alone.
+10. **Release Notes are mandatory for every production release.** Every time the master pipeline runs to completion, `ci/semver.sh` tags the commit and `ci/release-notes.sh` generates `RELEASE_NOTES_vX.Y.Z.md`. These are auto-published as GitHub Releases via `gh release create`. Never cut a production deployment without versioning it and publishing release notes. See Phase 9 tasks for the full CM process.
 
 ---
 
