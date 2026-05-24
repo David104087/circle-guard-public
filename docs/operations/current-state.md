@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-24 — Phase 2 COMPLETA. Los 3 clusters tienen manifests desplegados, smoke tests pasan en dev, stage y prod.
+2026-05-24 — Phase 3 COMPLETA. Istio 1.29.2 instalado en los 3 clusters, STRICT mTLS activo, Circuit Breaker + Retry configurados, Kiali/Jaeger/Grafana/Prometheus corriendo en istio-system.
 
 ---
 
@@ -33,8 +33,8 @@
 | Phase 0 — Foundation | 🟡 9/10 | Pendiente: billing alert manual (requiere billing.admin) |
 | Phase 1 — Terraform | 🟢 COMPLETA | Los 3 envs aplicados, terraform plan limpio |
 | Phase 2 — K8s Migration | 🟢 COMPLETA | Smoke tests pasan en dev/stage/prod |
-| Phase 3 — Istio | 🔴 | Depende de Phase 2 — **PRÓXIMO PASO** |
-| Phase 4 — CI/CD | 🔴 | Depende de Phase 2 + 3 |
+| Phase 3 — Istio | 🟡 13/14 | Kiali screenshot pendiente (sesión demo) |
+| Phase 4 — CI/CD | 🔴 | Depende de Phase 2 + 3 — **PRÓXIMO PASO** |
 | Phase 5 — Patterns | 🔴 | Depende de Phase 3 |
 | Phase 6 — Testing | 🔴 | Depende de Phase 4 |
 | Phase 7 — Observability | 🔴 | Depende de Phase 2 + 3 |
