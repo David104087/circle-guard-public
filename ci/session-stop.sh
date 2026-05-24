@@ -90,7 +90,7 @@ if $ALL_ZERO; then
   echo -e "  Todos los nodos ya están en 0."
   echo -e "  ¿Destruir los clusters completamente? Ahorra \$${CP_COST}/h, recrear tarda ~5 min."
   read -rp "  ¿Terraform destroy? [s/N]: " DC
-  [[ "${DC,,}" == "s" ]] && STRATEGY="destroy" || { ok "OK, hasta luego."; exit 0; }
+  case "$DC" in s|S) STRATEGY="destroy" ;; *) ok "OK, hasta luego."; exit 0 ;; esac
 else
   echo ""
   echo -e "  ${BOLD}¿Cuántas horas estarás fuera?${RESET}"
@@ -110,12 +110,12 @@ else
     echo -e "    A) Escalar a 0  → control planes: ${YELLOW}\$${COST_CP_ONLY}${RESET}"
     echo -e "    B) Terraform destroy → ${GREEN}\$0.00${RESET} (recrear ~5 min)"
     read -rp "  [A/b]: " MC
-    [[ "${MC,,}" == "b" ]] && STRATEGY="destroy" || STRATEGY="scale"
+    case "$MC" in b|B) STRATEGY="destroy" ;; *) STRATEGY="scale" ;; esac
   else
     echo -e "  ${RED}Ausencia larga (>8h)${RESET} — recomiendo terraform destroy."
     echo -e "  Si solo escalas pagarías: ${RED}\$${COST_CP_ONLY}${RESET} en control planes."
     read -rp "  ¿Terraform destroy? [S/n]: " LC
-    [[ "${LC,,}" == "n" ]] && STRATEGY="scale" || STRATEGY="destroy"
+    case "$LC" in n|N) STRATEGY="scale" ;; *) STRATEGY="destroy" ;; esac
   fi
 fi
 
