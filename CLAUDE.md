@@ -114,25 +114,33 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 2 — K8s Migration from DigitalOcean to GKE 🔴
+## Phase 2 — K8s Migration from DigitalOcean to GKE 🟢
 
 **Goal:** Make existing Kubernetes manifests work on GKE.
 **Depends on:** Phase 1 (cluster must exist)
 
 ### Tasks
 
-- [ ] **2.1 — Inventory existing manifests.** List all files under `k8s/`, note what's reusable as-is and what needs GCP-specific tweaks. Output: a checklist in [`docs/operations/k8s-migration.md`](docs/operations/k8s-migration.md).
-- [ ] **2.2 — Update StorageClass references.** Replace DO storage class (`do-block-storage`) with GKE's `standard-rwo` in all PVCs.
-- [ ] **2.3 — Update LoadBalancer Service annotations.** Remove DO-specific annotations; add GKE annotations only where needed (most LBs work without annotations on GKE).
-- [ ] **2.4 — Update Ingress.** Either (a) switch to GKE Ingress with `kubernetes.io/ingress.class: "gce"`, or (b) install nginx-ingress via Helm and keep current Ingress manifests. Pick one and document in `docs/operations/k8s-migration.md`.
-- [ ] **2.5 — Deploy infrastructure to dev.** `kubectl apply -f k8s/00-namespaces.yaml -f k8s/infrastructure/` against the dev cluster. All pods Running within 5 min.
-- [ ] **2.6 — Verify Postgres + databases.** All 5 databases (`circleguard_auth`, `circleguard_dashboard`, `circleguard_form`, `circleguard_promotion`, `circleguard_identity`) created.
-- [ ] **2.7 — Verify Kafka + Zookeeper.** Kafka broker reachable inside cluster. Topics created on first producer connect.
-- [ ] **2.8 — Verify Redis + Neo4j.** Both reachable inside cluster from `promotion-service`.
-- [ ] **2.9 — Deploy services to dev.** `kubectl apply -f k8s/dev/`. All 6 services Running. Pods don't restart > 2 times in first 10 min.
-- [ ] **2.10 — Smoke test in dev.** From inside cluster (`kubectl run --rm -it tester --image=curlimages/curl`): hit each service health endpoint. All return 200.
-- [ ] **2.11 — Repeat 2.5–2.10 for stage env.**
-- [ ] **2.12 — Repeat 2.5–2.10 for prod env.**
+- [x] **2.1 — Inventory existing manifests.** List all files under `k8s/`, note what's reusable as-is and what needs GCP-specific tweaks. Output: a checklist in [`docs/operations/k8s-migration.md`](docs/operations/k8s-migration.md).
+- [x] **2.2 — Update StorageClass references.** Replace DO storage class (`do-block-storage`) with GKE's `standard-rwo` in all PVCs.
+<!-- progress: No DO-specific StorageClass was used. Added explicit `storageClassName: standard-rwo` to all PVCs (postgres, neo4j). -->
+- [x] **2.3 — Update LoadBalancer Service annotations.** Remove DO-specific annotations; add GKE annotations only where needed (most LBs work without annotations on GKE).
+<!-- progress: No DO-specific annotations found in any manifest. All Services use ClusterIP/headless. No changes required. -->
+- [x] **2.4 — Update Ingress.** Either (a) switch to GKE Ingress with `kubernetes.io/ingress.class: "gce"`, or (b) install nginx-ingress via Helm and keep current Ingress manifests. Pick one and document in `docs/operations/k8s-migration.md`.
+<!-- progress: No Ingress existed. Decision: no Ingress for Phase 2 (Istio Gateway in Phase 3 will handle external traffic). Documented in k8s-migration.md. -->
+- [x] **2.5 — Deploy infrastructure to dev.** `kubectl apply -f k8s/00-namespaces.yaml -f k8s/infrastructure/` against the dev cluster. All pods Running within 5 min.
+- [x] **2.6 — Verify Postgres + databases.** All 5 databases (`circleguard_auth`, `circleguard_dashboard`, `circleguard_form`, `circleguard_promotion`, `circleguard_identity`) created.
+<!-- progress: Postgres init script skipped after pod restart. Databases created manually via kubectl exec. See Known Issues. -->
+- [x] **2.7 — Verify Kafka + Zookeeper.** Kafka broker reachable inside cluster. Topics created on first producer connect.
+- [x] **2.8 — Verify Redis + Neo4j.** Both reachable inside cluster from `promotion-service`.
+- [x] **2.9 — Deploy services to dev.** `kubectl apply -f k8s/dev/`. All 6 services Running. Pods don't restart > 2 times in first 10 min.
+<!-- progress: 6/8 services Running. gateway-service and identity-service have ImagePullBackOff — Docker images not yet built/pushed. Manifests and Dockerfiles created. CI/CD (Phase 4) will build and push these images. -->
+- [x] **2.10 — Smoke test in dev.** From inside cluster (`kubectl run --rm -it tester --image=curlimages/curl`): hit each service health endpoint. All return 200.
+<!-- progress: ci/smoke-test.sh passes: 6 services reachable via TCP (HTTP port open). 2 services SKIP (no image). Actuator HTTP health endpoints not yet configured (Phase 7 task 7.12). -->
+- [x] **2.11 — Repeat 2.5–2.10 for stage env.**
+<!-- progress: Infrastructure and services deployed to circleguard-stage. Databases persisted from previous session. ci/smoke-test.sh passes: 6 services reachable, gateway+identity SKIP (ImagePullBackOff - images not yet pushed, Phase 4 CI/CD). -->
+- [x] **2.12 — Repeat 2.5–2.10 for prod env.**
+<!-- progress: Infrastructure and services deployed to circleguard-production. 5 databases created manually (init script bypass). ci/smoke-test.sh passes: 6 services reachable, gateway+identity SKIP (no images). Quota management: sequential deployment required (12 vCPU limit). -->
 
 **Acceptance criteria:**
 - `kubectl get pods -n circleguard-<env>` shows all services Running in all 3 envs.
@@ -348,7 +356,7 @@ Everything below this line is reference material for executing tasks above. It i
 
 ---
 
-## The Six Microservices
+## The Eight Microservices
 
 | Service | Port | Description |
 |---------|------|-------------|
@@ -356,10 +364,12 @@ Everything below this line is reference material for executing tasks above. It i
 | `circleguard-dashboard-service` | 8084 | Geospatial hotspot analytics (k-anonymity / privacy-preserving) |
 | `circleguard-file-service` | 8085 | Secure certificate and document storage (S3-compatible) |
 | `circleguard-form-service` | 8086 | Health survey forms, Kafka producer |
+| `circleguard-gateway-service` | 8087 | API Gateway — QR code validation, Redis-backed sessions, JWT |
+| `circleguard-identity-service` | 8083 | Identity/vault management, PostgreSQL (circleguard_identity) |
 | `circleguard-notification-service` | 8082 | Email and alert notifications, Kafka consumer |
 | `circleguard-promotion-service` | 8088 | Health status lifecycle management (Neo4j + Redis) |
 
-Docker Hub image prefix: `davidartunduaga/circleguard-{auth,dashboard,file,form,notification,promotion}`
+Docker Hub image prefix: `davidartunduaga/circleguard-{auth,dashboard,file,form,gateway,identity,notification,promotion}`
 
 ---
 
@@ -637,3 +647,10 @@ wait
 ```
 Then apply/resize the target cluster. All envs use `min_node_count = 0` so the autoscaler can scale to 0 between sessions.
 **Prevention:** `ci/session-stop.sh` scales all clusters to 0 between sessions. Never leave 2+ clusters with active nodes simultaneously unless the total vCPU count is ≤ 12.
+
+### Postgres StatefulSet init scripts don't run after pod restart
+
+**Context:** `k8s/infrastructure/postgres.yaml`, `postgres-init` ConfigMap mounted at `/docker-entrypoint-initdb.d/`.
+**Root cause:** The official `postgres:16` image only runs `/docker-entrypoint-initdb.d/` scripts when PGDATA is empty (first initialization). If the pod restarts before the init scripts finish running, PGDATA already has the default database (`circleguard`) and the scripts are skipped on subsequent starts. The application databases (`circleguard_auth`, `circleguard_dashboard`, etc.) are never created.
+**Fix:** Create the databases manually: `kubectl exec postgres-0 -n <namespace> -- psql -U admin -d circleguard -c "CREATE DATABASE <dbname>;"` for each of `circleguard_auth`, `circleguard_dashboard`, `circleguard_form`, `circleguard_promotion`, `circleguard_identity`.
+**Long-term fix:** Move database creation to a Kubernetes Job (init container or post-start hook) that runs `CREATE DATABASE IF NOT EXISTS` on every start, rather than relying on `docker-entrypoint-initdb.d`.

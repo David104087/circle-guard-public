@@ -100,7 +100,6 @@ spec:
     - port: 9092
       targetPort: 9092
 ---
-# Stage namespace - same config
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -144,6 +143,7 @@ spec:
     app: zookeeper
   ports:
     - port: 2181
+      targetPort: 2181
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -199,8 +199,8 @@ spec:
     app: kafka
   ports:
     - port: 9092
+      targetPort: 9092
 ---
-# Production namespace
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -300,3 +300,4 @@ spec:
     app: kafka
   ports:
     - port: 9092
+      targetPort: 9092

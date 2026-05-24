@@ -46,6 +46,7 @@ spec:
       port: 8025
       targetPort: 8025
 ---
+---
 # Stage namespace
 apiVersion: apps/v1
 kind: Deployment
@@ -87,8 +88,10 @@ spec:
   ports:
     - name: smtp
       port: 1025
+      targetPort: 1025
     - name: web-ui
       port: 8025
+      targetPort: 8025
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -130,5 +133,7 @@ spec:
   ports:
     - name: smtp
       port: 1025
+      targetPort: 1025
     - name: web-ui
       port: 8025
+      targetPort: 8025
