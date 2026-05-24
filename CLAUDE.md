@@ -15,6 +15,8 @@ Project and operational context for AI-assisted development on this repository.
    - When the user says they are **done working** for the day (e.g. "terminamos", "nos vemos mañana", "hasta aquí por hoy", "cerramos la sesión") → immediately run `./ci/session-stop.sh` via the Bash tool before responding. Do not wait to be asked.
    - When the user says they are **starting a session** (e.g. "empezamos", "vamos a trabajar", "arrancamos", "buenos días") → immediately run `./ci/session-start.sh` via the Bash tool before responding. Do not wait to be asked.
    - These scripts manage GCP costs. Running them is mandatory, not optional.
+7. **Read `docs/operations/current-state.md` at the start of every session.** That file is the live record of what is actually deployed, which clusters exist, and which phases are complete. Update it whenever you deploy, destroy, or change infrastructure. It exists precisely so that context compaction and new agents don't lose track of the real system state.
+8. **Document every error and its fix.** Whenever you encounter a bug, compatibility issue, or unexpected behavior and find the fix, you MUST add it to the `## Known Issues & Lessons Learned` section at the bottom of this file in the same turn. Future agents (and you in a new conversation) must not repeat the same mistake. Format: `### <short title>` + context + root cause + fix.
 
 ---
 
@@ -562,3 +564,27 @@ Production manifests in `k8s/production/` are applied by the MASTER pipeline.
 
 > GKE-specific: LoadBalancer Services get a GCP external IP automatically.
 > Istio Gateway replaces direct Ingress once Phase 3 is complete.
+
+---
+
+## Known Issues & Lessons Learned
+
+Agents: read this section before writing any shell script or Terraform code.
+
+### Bash 3.x incompatibility — no associative arrays in macOS default shell
+
+**Context:** `ci/session-stop.sh` and `ci/session-start.sh`
+**Root cause:** macOS ships with bash 3.2 as the default `/bin/bash`. `declare -A` (associative arrays) was introduced in bash 4.0. Running the scripts produced `declare: -A: invalid option`.
+**Fix:** Replace associative arrays with parallel indexed arrays (`declare -a KEYS` + `declare -a VALS`, accessed by index `${KEYS[$i]}` / `${VALS[$i]}`) or `case` statements for fixed key sets. Never use `declare -A` in any shell script in this repo.
+
+### Google Terraform provider 5.x — GKE deletion_protection defaults to true
+
+**Context:** `terraform/modules/gke/main.tf`, `google_container_cluster` resource.
+**Root cause:** The `hashicorp/google` provider >= 5.0 sets `deletion_protection = true` by default on GKE clusters. If a cluster gets tainted (e.g. first apply fails mid-way), the subsequent `terraform apply` tries to destroy it and errors: `Cannot destroy cluster because deletion_protection is set to true`.
+**Fix:** Always set `deletion_protection = false` explicitly in the `google_container_cluster` resource for all environments in this project. Additionally, when a cluster exists in GCP but is tainted in the state, use `terraform untaint <resource>` to remove the taint before re-applying.
+
+### Terraform apply partial failure — resource exists in GCP but not in state
+
+**Context:** `terraform/modules/gke/`, `google_container_node_pool` resource.
+**Root cause:** If `terraform apply` fails after creating a resource in GCP but before writing to remote state (network blip, timeout, etc.), the next `apply` tries to create the resource again and fails with "already exists".
+**Fix:** Use `terraform import <resource_address> <resource_id>` to bring the existing resource into the state, then re-run `terraform apply`. For GKE node pools the import ID format is: `projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/nodePools/<POOL>`.
