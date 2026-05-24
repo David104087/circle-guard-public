@@ -30,7 +30,7 @@ Project and operational context for AI-assisted development on this repository.
 
 **Bonus selected:** Only **Service Mesh (Istio)**. Multi-Cloud, Chaos Engineering, and FinOps bonuses are explicitly OUT OF SCOPE — do not start work on them.
 
-CircleGuard is a university health-monitoring platform. Six microservices communicate via Kafka and REST.
+CircleGuard is a university health-monitoring platform. Eight microservices communicate via Kafka and REST. Six have published Docker Hub images; `gateway-service` and `identity-service` images are built and pushed in Phase 4 CI/CD.
 
 > **Infrastructure migration:** The project has moved from DigitalOcean to **Google Cloud Platform (GCP)**.
 > The Kubernetes cluster is now GKE. All new `k8s/` manifests and Terraform code target GCP.
@@ -168,7 +168,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 - [x] **3.9 — Install Ingress Gateway.** Replace nginx/GCE Ingress with Istio Gateway + VirtualService for external traffic. Allocate a single GCP external IP.
 <!-- progress: External IP dev: 35.253.156.137. TLS (Phase 8) adds cert-manager. -->
 - [x] **3.10 — Set up canary traffic split structure.** For one service (`gateway-service`), define two `subsets` (v1, v2) in DestinationRule. VirtualService routes 100/0 (canary inactive by default). Document the workflow in [`docs/operations/canary-deployments.md`](docs/operations/canary-deployments.md).
-- [ ] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 6 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
+- [ ] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 8 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
 <!-- progress: Kiali running in istio-system. Screenshot requires UI access — to be captured during demo session. -->
 - [x] **3.12 — Repeat 3.1–3.11 for stage env.**
 <!-- progress: Istio installed, STRICT mTLS, sidecars, DR+VS+GW+addons applied. Kiali screenshot pending demo. -->
@@ -183,7 +183,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 4 — CI/CD Avanzado (15% of grade) 🔴
+## Phase 4 — CI/CD Avanzado (15% of grade) 🟡
 
 **Goal:** Enhanced pipelines with SonarQube, Trivy, semver, notifications, prod approval, canary via Istio.
 **Depends on:** Phase 2 (deployment must work), Phase 3 (canary integration)
@@ -191,12 +191,12 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 ### Tasks
 
 - [ ] **4.1 — Update Jenkins credentials for GCP.** Add `gcp-service-account-key` (SecretFile, JSON key). Replace DO `kubeconfig-dev/stage/production` with GKE-generated kubeconfigs.
-- [ ] **4.2 — Add SonarQube stage.** Run SonarQube as a Docker container locally (or via Helm in cluster). Add stage to Jenkinsfile.dev/stage/master running `./gradlew sonar`. Quality gate must pass to continue.
-- [ ] **4.3 — SonarQube project configured per service.** 6 projects, one per microservice. `sonar-project.properties` or Gradle config in each.
-- [ ] **4.4 — Add Trivy stage.** After Docker build, run `trivy image --severity HIGH,CRITICAL --exit-code 1` against each image. Fails pipeline on HIGH/CRITICAL.
-- [ ] **4.5 — Semantic versioning script.** [`ci/semver.sh`](ci/semver.sh) reads conventional commits since last tag, decides patch/minor/major, creates git tag, outputs version. Used by master pipeline.
-- [ ] **4.6 — Notifications on failure.** Pipeline `post { failure { ... } }` posts to a Slack webhook OR sends an email via SMTP. Credentials in Jenkins. Document setup in [`docs/operations/notifications.md`](docs/operations/notifications.md).
-- [ ] **4.7 — Canary deployment stage.** In master pipeline, deploy new version as `v2` subset, set VirtualService to 10% traffic. Pipeline waits (timeout 30 min) for a manual approval to flip to 100%. Rollback on failure.
+- [x] **4.2 — Add SonarQube stage.** Run SonarQube as a Docker container locally (or via Helm in cluster). Add stage to Jenkinsfile.dev/stage/master running `./gradlew sonar`. Quality gate must pass to continue.
+- [x] **4.3 — SonarQube project configured per service.** 8 projects, one per microservice. `sonarqube {}` Gradle block in each service's `build.gradle.kts`; root `build.gradle.kts` applies `org.sonarqube v4.4.1.3373` and `jacoco` across all subprojects.
+- [x] **4.4 — Add Trivy stage.** After Docker build+push, run `trivy image --severity HIGH,CRITICAL --exit-code 1` against each image. Fails pipeline on HIGH/CRITICAL.
+- [x] **4.5 — Semantic versioning script.** [`ci/semver.sh`](ci/semver.sh) reads conventional commits since last tag, decides patch/minor/major, creates git tag, outputs version. Used by master pipeline.
+- [x] **4.6 — Notifications on failure.** Pipeline `post { failure { ... } }` posts to a Slack webhook. Credentials in Jenkins (`slack-webhook`). Documented in [`docs/operations/notifications.md`](docs/operations/notifications.md).
+- [x] **4.7 — Canary deployment stage.** In master pipeline, deploys `auth-service-canary` with `track: canary` label (v2 DestinationRule subset), patches VirtualService to 90%/10%, waits 30 min for manual approval, promotes or rollbacks.
 - [ ] **4.9 — Pipeline runs end-to-end.** Trigger dev pipeline manually; passes from Checkout to Deploy.
 - [ ] **4.10 — Master pipeline runs end-to-end including canary.** Trigger master, see canary at 10%, approve, see 100%.
 
@@ -214,7 +214,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ### Tasks
 
-- [ ] **5.1 — Identify existing patterns.** Read all 6 services. Document each pattern found (API Gateway, Database per Service, Event-Driven via Kafka, JWT auth, k-anonymity privacy filter, etc.) in [`docs/patterns/existing.md`](docs/patterns/existing.md). At least 5 patterns documented with file references.
+- [ ] **5.1 — Identify existing patterns.** Read all 8 services. Document each pattern found (API Gateway, Database per Service, Event-Driven via Kafka, JWT auth, k-anonymity privacy filter, etc.) in [`docs/patterns/existing.md`](docs/patterns/existing.md). At least 5 patterns documented with file references.
 - [ ] **5.2 — Resilience pattern: Circuit Breaker + Retry (Istio).** Already implemented in Phase 3.7/3.8. Documented in [`docs/patterns/resilience.md`](docs/patterns/resilience.md). Just verify the doc explains *why* + *benefit*.
 - [ ] **5.3 — Configuration pattern: External Configuration.** Move all `application.yml` secrets to GCP Secret Manager via External Secrets Operator (ESO). Install ESO in each cluster. Create `ExternalSecret` resources that sync from Secret Manager → K8s Secrets. Services mount those secrets.
 - [ ] **5.4 — Third pattern: Sidecar (Istio envoy proxy).** Already implemented in Phase 3 via Istio sidecar injection. Document in [`docs/patterns/sidecar.md`](docs/patterns/sidecar.md): the sidecar offloads cross-cutting concerns (mTLS, retries, metrics) from application code.
@@ -258,7 +258,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 - [ ] **7.1 — kube-prometheus-stack installed via Helm.** Includes Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics. Installed in `monitoring` namespace per env. Manifests/values in [`k8s/monitoring/`](k8s/monitoring/).
 - [ ] **7.2 — Spring Boot Actuator + Micrometer Prometheus exposed.** Each service exposes `/actuator/prometheus`. ServiceMonitor CRDs in `k8s/monitoring/servicemonitors.yaml`.
-- [ ] **7.3 — Per-service Grafana dashboard.** 6 dashboards (one per service) showing: request rate, error rate, p50/p95/p99 latency, JVM heap, GC pauses. JSON saved to [`k8s/monitoring/dashboards/`](k8s/monitoring/dashboards/).
+- [ ] **7.3 — Per-service Grafana dashboard.** 8 dashboards (one per service) showing: request rate, error rate, p50/p95/p99 latency, JVM heap, GC pauses. JSON saved to [`k8s/monitoring/dashboards/`](k8s/monitoring/dashboards/).
 - [ ] **7.4 — Istio mesh dashboard.** Import Istio's standard Grafana dashboards (mesh, services, workloads).
 - [ ] **7.5 — Alerting rules.** PrometheusRule CRDs for: pod restart loop, p95 latency > 1s, error rate > 5%, JVM heap > 90%, PVC > 85% full. Document each rule in [`docs/operations/alerts.md`](docs/operations/alerts.md).
 - [ ] **7.6 — Alertmanager wired to Slack/email.** Same channel as pipeline notifications.
@@ -273,7 +273,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 **Acceptance criteria:**
 - `kubectl get pods -n monitoring` and `-n logging` all Running.
-- Grafana shows all 6 services in dashboards with non-zero data.
+- Grafana shows all 8 services in dashboards with non-zero data.
 - Triggering a 500 in any service produces: a log in Kibana, a span in Jaeger, a spike in Grafana, and (if sustained) an Alertmanager alert.
 
 ---
@@ -478,7 +478,7 @@ terraform/
 | MASTER | `ci/Jenkinsfile.master` | `circleguard-master` | manual / tag |
 
 ### DEV pipeline stages (current — Taller 2)
-1. Checkout → 2. Build All Services → 3. Setup Docker Proxy → 4. Unit Tests (parallel, 6 services) → 5. Docker Build & Push → 6. Deploy to K8s DEV
+1. Checkout → 2. Build All Services → 3. Setup Docker Proxy → 4. Unit Tests (parallel, 8 services) → 5. Docker Build & Push → 6. Deploy to K8s DEV
 
 ### Target stages after Phase 4 (Proyecto Final)
 1. Checkout → 2. Build → 3. SonarQube scan → 4. Docker Proxy → 5. Unit Tests → 6. Integration Tests (stage+master only) → 7. E2E Tests (master only) → 8. Docker Build & Trivy scan → 9. Docker Push → 10. Deploy to GKE → 11. (master only) Canary 10% → 100% → 12. Release Notes (master only)
@@ -523,7 +523,7 @@ Jenkins runs inside Docker. Testcontainers starts containers (Neo4j, Redis) on t
 Setting `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` fixes the `ContainerLaunchException` / `HostPortWaitStrategy` timeout.
 
 ### Dockerfiles (Pre-Built JAR Pattern)
-All 6 service Dockerfiles use a single-stage build that copies the pre-compiled JAR from the Jenkins workspace. This reduces Docker build time from ~2 min to ~30 sec per service.
+All 8 service Dockerfiles use a single-stage build that copies the pre-compiled JAR from the Jenkins workspace. This reduces Docker build time from ~2 min to ~30 sec per service.
 ```dockerfile
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app

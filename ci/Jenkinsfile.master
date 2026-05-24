@@ -1,8 +1,9 @@
 /*
  * CircleGuard – MASTER (Production) Pipeline
  * Triggers on merge to main/master.
- * Phases: Checkout → Build → Unit Tests → Integration Tests → E2E Tests →
- *         Docker Build/Push → Deploy K8s Production → Release Notes
+ * Phases: Checkout → Build → SonarQube → Docker Proxy → Unit Tests → Integration Tests →
+ *         E2E Tests → Docker Build+Trivy+Push → Deploy PRODUCTION → Canary Release →
+ *         Generate Release Notes
  */
 pipeline {
     agent any
@@ -34,9 +35,25 @@ pipeline {
                         :services:circleguard-dashboard-service:bootJar \
                         :services:circleguard-file-service:bootJar \
                         :services:circleguard-form-service:bootJar \
+                        :services:circleguard-gateway-service:bootJar \
+                        :services:circleguard-identity-service:bootJar \
                         :services:circleguard-notification-service:bootJar \
                         :services:circleguard-promotion-service:bootJar \
                         -x test --no-daemon
+                '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            environment {
+                SONAR_TOKEN = credentials('sonarqube-token')
+            }
+            steps {
+                sh '''
+                    ./gradlew sonar \
+                        -Dsonar.host.url=http://host.docker.internal:9000 \
+                        -Dsonar.token=${SONAR_TOKEN} \
+                        --no-daemon
                 '''
             }
         }
@@ -146,7 +163,7 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build, Scan & Push') {
             steps {
                 withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-credentials',
@@ -161,6 +178,9 @@ pipeline {
                             docker buildx build --platform linux/amd64 \
                                 -f services/circleguard-${svc}-service/Dockerfile \
                                 -t ${IMAGE} -t ${LATEST} -t ${PROD} --push .
+                            echo "Scanning ${IMAGE} with Trivy..."
+                            trivy image --severity HIGH,CRITICAL --exit-code 1 \
+                                --no-progress --timeout 5m ${IMAGE}
                         done
                     '''
                 }
@@ -172,21 +192,21 @@ pipeline {
                 sh '''
                     kubectl apply -f k8s/00-namespaces.yaml
                     kubectl apply -f k8s/infrastructure/
-                    # Wait for postgres to be ready before creating databases
                     kubectl rollout status statefulset/postgres -n ${NAMESPACE} --timeout=120s
-                    # Ensure required databases exist (idempotent — outer loop expands $db before exec)
                     for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
                         kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
                     done
-                    # Apply production manifests first (ensures strategy/probe config is current)
                     kubectl apply -f k8s/production/
-                    # Update image tags to versioned tag
+                    # Apply Istio traffic management for production (starts at 100% v1, 0% canary)
+                    sed "s/namespace: circleguard-dev/namespace: circleguard-production/g" \
+                        k8s/istio/virtual-services.yaml | kubectl apply -f -
+                    sed "s/namespace: circleguard-dev/namespace: circleguard-production/g" \
+                        k8s/istio/destination-rules.yaml | kubectl apply -f -
                     for svc in auth dashboard file form notification promotion; do
                         kubectl set image deployment/${svc}-service \
                             ${svc}-service=${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG} \
                             -n ${NAMESPACE}
                     done
-                    # Wait for rollouts
                     for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
                         kubectl rollout status deployment/${svc} -n ${NAMESPACE} --timeout=300s
                     done
@@ -194,10 +214,109 @@ pipeline {
             }
         }
 
-        stage('Generate Release Notes') {
+        stage('Canary Release') {
+            environment {
+                CANARY_IMAGE = "${DOCKER_HUB_USER}/circleguard-auth:${IMAGE_TAG}"
+            }
             steps {
-                sh 'chmod +x ci/release-notes.sh'
-                sh "ci/release-notes.sh ${IMAGE_TAG}"
+                sh '''
+                    # Deploy canary (auth-service v2 with track=canary label)
+                    cat > /tmp/auth-canary.yaml << MANIFEST
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service-canary
+  namespace: ${NAMESPACE}
+  labels:
+    app: auth-service
+    track: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+      track: canary
+  template:
+    metadata:
+      labels:
+        app: auth-service
+        track: canary
+    spec:
+      containers:
+      - name: auth-service
+        image: ${CANARY_IMAGE}
+        ports:
+        - containerPort: 8180
+MANIFEST
+                    kubectl apply -f /tmp/auth-canary.yaml
+                    kubectl rollout status deployment/auth-service-canary -n ${NAMESPACE} --timeout=120s
+                    # Shift 10% traffic to v2 (canary) for both GET and non-GET routes
+                    kubectl patch virtualservice auth-service -n ${NAMESPACE} --type=json \
+                        -p '[
+                            {"op":"replace","path":"/spec/http/0/route/0/weight","value":90},
+                            {"op":"replace","path":"/spec/http/0/route/1/weight","value":10},
+                            {"op":"replace","path":"/spec/http/1/route/0/weight","value":90},
+                            {"op":"replace","path":"/spec/http/1/route/1/weight","value":10}
+                        ]'
+                    echo "Canary deployed: 90% v1, 10% v2. Image: ${CANARY_IMAGE}"
+                '''
+                timeout(time: 30, unit: 'MINUTES') {
+                    input message: "Canary is live at 10% traffic. Image: ${env.CANARY_IMAGE}.\nApprove full production rollout to 100%?", ok: 'Promote to 100%'
+                }
+            }
+            post {
+                success {
+                    sh '''
+                        # Promote: update stable deployment to new image, restore VirtualService to 100% v1
+                        kubectl set image deployment/auth-service \
+                            auth-service=${CANARY_IMAGE} -n ${NAMESPACE}
+                        kubectl patch virtualservice auth-service -n ${NAMESPACE} --type=json \
+                            -p '[
+                                {"op":"replace","path":"/spec/http/0/route/0/weight","value":100},
+                                {"op":"replace","path":"/spec/http/0/route/1/weight","value":0},
+                                {"op":"replace","path":"/spec/http/1/route/0/weight","value":100},
+                                {"op":"replace","path":"/spec/http/1/route/1/weight","value":0}
+                            ]'
+                        kubectl delete deployment auth-service-canary -n ${NAMESPACE} --ignore-not-found
+                        echo "Canary promoted to 100%"
+                    '''
+                }
+                aborted {
+                    sh '''
+                        # Rollback: restore 100% v1 traffic, delete canary deployment
+                        kubectl patch virtualservice auth-service -n ${NAMESPACE} --type=json \
+                            -p '[
+                                {"op":"replace","path":"/spec/http/0/route/0/weight","value":100},
+                                {"op":"replace","path":"/spec/http/0/route/1/weight","value":0},
+                                {"op":"replace","path":"/spec/http/1/route/0/weight","value":100},
+                                {"op":"replace","path":"/spec/http/1/route/1/weight","value":0}
+                            ]' || true
+                        kubectl delete deployment auth-service-canary -n ${NAMESPACE} --ignore-not-found || true
+                        echo "Canary aborted — traffic rolled back to 100% v1"
+                    '''
+                }
+            }
+        }
+
+        stage('Generate Release Notes') {
+            environment {
+                GH_TOKEN = credentials('github-token')
+            }
+            steps {
+                sh 'chmod +x ci/release-notes.sh ci/semver.sh'
+                sh '''
+                    NEW_VERSION=$(ci/semver.sh --dry-run)
+                    ci/release-notes.sh "${NEW_VERSION}"
+                    git config user.email "ci@circleguard.local"
+                    git config user.name "CircleGuard CI"
+                    ci/semver.sh
+                    NEW_TAG=$(git describe --tags --abbrev=0)
+                    git push https://David104087:${GH_TOKEN}@github.com/David104087/circle-guard-public.git "${NEW_TAG}"
+                    gh release create "${NEW_TAG}" \
+                        --title "Release ${NEW_TAG}" \
+                        --notes-file "RELEASE_NOTES_${NEW_TAG}.md" \
+                        --repo David104087/circle-guard-public || true
+                '''
             }
             post {
                 success {
@@ -213,10 +332,17 @@ pipeline {
             echo "PRODUCTION deployment successful. Release: ${IMAGE_TAG}"
         }
         failure {
-            echo "PRODUCTION pipeline failed. Manual rollback may be needed."
+            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_URL')]) {
+                sh """
+                    curl -s -X POST -H 'Content-type: application/json' \
+                        --data '{"text":"*CircleGuard MASTER/PRODUCTION* pipeline #${env.BUILD_NUMBER} FAILED. Immediate attention required. See: ${env.BUILD_URL}"}' \
+                        "\$SLACK_URL" || true
+                """
+            }
             sh '''
                 kubectl rollout undo deployment/auth-service -n ${NAMESPACE} || true
                 kubectl rollout undo deployment/promotion-service -n ${NAMESPACE} || true
+                kubectl delete deployment auth-service-canary -n ${NAMESPACE} --ignore-not-found || true
             '''
         }
         always {

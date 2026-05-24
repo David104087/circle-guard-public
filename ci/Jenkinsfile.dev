@@ -1,7 +1,7 @@
 /*
  * CircleGuard – DEV Pipeline
  * Triggers on push to any branch (except main/master).
- * Phases: Checkout → Build → Unit Tests → Docker Build/Push → Deploy to K8s dev
+ * Phases: Checkout → Build → SonarQube → Docker Proxy → Unit Tests → Docker Build+Trivy → Push → Deploy
  */
 pipeline {
     agent any
@@ -32,6 +32,8 @@ pipeline {
                         :services:circleguard-dashboard-service:bootJar \
                         :services:circleguard-file-service:bootJar \
                         :services:circleguard-form-service:bootJar \
+                        :services:circleguard-gateway-service:bootJar \
+                        :services:circleguard-identity-service:bootJar \
                         :services:circleguard-notification-service:bootJar \
                         :services:circleguard-promotion-service:bootJar \
                         -x test --no-daemon
@@ -39,12 +41,22 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            environment {
+                SONAR_TOKEN = credentials('sonarqube-token')
+            }
+            steps {
+                sh '''
+                    ./gradlew sonar \
+                        -Dsonar.host.url=http://host.docker.internal:9000 \
+                        -Dsonar.token=${SONAR_TOKEN} \
+                        --no-daemon
+                '''
+            }
+        }
+
         stage('Setup Docker Proxy') {
             steps {
-                // Start API-version-rewriting proxy so docker-java (which hardcodes /v1.32/ URL paths)
-                // works with Docker 29.x which requires minimum API 1.44.
-                // Also write ~/.testcontainers.properties so Testcontainers picks up the proxy
-                // socket regardless of how environment variables are inherited in forked JVMs.
                 sh '''
                     pkill -f docker-version-proxy.py || true
                     python3 /opt/docker-version-proxy.py \
@@ -56,8 +68,6 @@ pipeline {
                     ls -la /tmp/docker-proxy.sock
                     printf "docker.host=unix:///tmp/docker-proxy.sock\nryuk.disabled=true\nhost.override=host.docker.internal\n" \
                         > ~/.testcontainers.properties
-                    echo "testcontainers.properties written:"
-                    cat ~/.testcontainers.properties
                 '''
             }
         }
@@ -134,7 +144,7 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build, Scan & Push') {
             steps {
                 withCredentials([usernamePassword(
                         credentialsId: 'dockerhub-credentials',
@@ -148,6 +158,9 @@ pipeline {
                             docker buildx build --platform linux/amd64 \
                                 -f services/circleguard-${svc}-service/Dockerfile \
                                 -t ${IMAGE} -t ${LATEST} --push .
+                            echo "Scanning ${IMAGE} with Trivy..."
+                            trivy image --severity HIGH,CRITICAL --exit-code 1 \
+                                --no-progress --timeout 5m ${IMAGE}
                         done
                     '''
                 }
@@ -159,14 +172,16 @@ pipeline {
                 sh '''
                     kubectl apply -f k8s/00-namespaces.yaml
                     kubectl apply -f k8s/infrastructure/
-                    # Wait for postgres to be ready before creating databases
                     kubectl rollout status statefulset/postgres -n ${NAMESPACE} --timeout=120s
-                    # Ensure required databases exist (idempotent — outer loop expands $db before exec)
                     for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
                         kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
                     done
                     kubectl apply -f k8s/dev/
-                    # Restart deployments to pull latest
+                    # Apply Istio traffic management
+                    sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
+                        k8s/istio/virtual-services.yaml | kubectl apply -f -
+                    sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
+                        k8s/istio/destination-rules.yaml | kubectl apply -f -
                     for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
                         kubectl rollout restart deployment/${svc} -n ${NAMESPACE}
                     done
@@ -182,7 +197,13 @@ pipeline {
             echo "DEV pipeline completed successfully. Images pushed as :${IMAGE_TAG}"
         }
         failure {
-            echo "DEV pipeline failed."
+            withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_URL')]) {
+                sh """
+                    curl -s -X POST -H 'Content-type: application/json' \
+                        --data '{"text":"*CircleGuard DEV* pipeline #${env.BUILD_NUMBER} FAILED. Branch: ${env.BRANCH_NAME}. See: ${env.BUILD_URL}"}' \
+                        "\$SLACK_URL" || true
+                """
+            }
         }
         always {
             sh 'pkill -f docker-version-proxy.py || true'

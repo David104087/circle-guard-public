@@ -25,6 +25,9 @@ spec:
     - name: v1
       labels:
         version: "latest"
+    - name: v2
+      labels:
+        track: "canary"
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
