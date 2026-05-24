@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-24 — Dev cluster siendo recreado (SSD quota fix); stage/prod pendiente
+2026-05-24 — Dev cluster RUNNING con e2-standard-2/pd-standard; stage+prod en apply
 
 ---
 
@@ -45,13 +45,11 @@
 
 ## Infraestructura GCP (Terraform)
 
-### Entorno dev — ⏳ RECREANDO (terraform apply en curso)
-
-> El cluster original tuvo un error de cuota SSD. Fue destruido y se está recreando con pd-standard.
+### Entorno dev — ✅ APLICADO (3 nodos RUNNING)
 
 | Recurso | Nombre / Valor |
 |---------|---------------|
-| GKE Cluster | `circleguard-dev` (regional, us-central1) — PROVISIONING |
+| GKE Cluster | `circleguard-dev` (regional, us-central1) — RUNNING |
 | Node pool | `default-pool` — e2-standard-2 Spot — 0-3 nodos/zona — pd-standard 50 GB |
 | VPC | `circleguard-dev` |
 | Subnet | `circleguard-dev-subnet` — 10.10.0.0/24 |
@@ -63,9 +61,7 @@
 | SA infra | `cg-eso-dev`, `cg-jenkins-dev`, `cg-gke-ev` |
 | Kubernetes namespace | `circleguard-dev` (aún vacío — Phase 2 lo llena) |
 
-### Entorno stage — ⏳ PENDIENTE (terraform apply)
-
-Código escrito en `terraform/envs/stage/`. Pendiente de aplicar.
+### Entorno stage — ⏳ APLICANDO (terraform apply en curso)
 
 | Recurso planificado | Valor |
 |--------------------|-------|
@@ -73,9 +69,7 @@ Código escrito en `terraform/envs/stage/`. Pendiente de aplicar.
 | Node pool | e2-standard-2 Spot — 0-3 nodos/zona |
 | Subnet | 10.20.0.0/24 |
 
-### Entorno prod — ⏳ PENDIENTE (terraform apply)
-
-Código escrito en `terraform/envs/prod/`. Pendiente de aplicar.
+### Entorno prod — ⏳ APLICANDO (terraform apply en curso)
 
 | Recurso planificado | Valor |
 |--------------------|-------|
@@ -89,7 +83,7 @@ Código escrito en `terraform/envs/prod/`. Pendiente de aplicar.
 
 | Entorno | Archivo | Generado |
 |---------|---------|---------|
-| dev | `~/.kube/circleguard-dev` | Pendiente (después de apply) |
+| dev | `~/.kube/circleguard-dev` | ✅ Generado |
 | stage | `~/.kube/circleguard-stage` | Pendiente |
 | prod | `~/.kube/circleguard-prod` | Pendiente |
 
