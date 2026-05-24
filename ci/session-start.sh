@@ -156,6 +156,14 @@ fi
 
 [[ -f "$STOP_FILE" ]] && rm -f "$STOP_FILE"
 
+# Fix Docker socket permissions for Jenkins DooD
+# The socket is mounted as root:root inside the container — jenkins user can't access it without this
+if docker ps --filter name=circleguard-jenkins --filter status=running -q 2>/dev/null | grep -q .; then
+  if docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock 2>/dev/null; then
+    ok "Jenkins Docker socket permissions fixed"
+  fi
+fi
+
 # Resumen de costo
 TOTAL_NODES=0
 for ENV in "${REQUESTED_ENVS[@]}"; do
