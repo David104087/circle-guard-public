@@ -30,9 +30,16 @@ resource "google_container_cluster" "cluster" {
   network    = var.network_id
   subnetwork = var.subnet_id
 
-  # Remove default node pool immediately after cluster creation
+  # Remove default node pool immediately after cluster creation.
+  # node_config here applies to the temporary initial pool (pd-standard avoids SSD quota).
   remove_default_node_pool = true
   initial_node_count       = 1
+
+  node_config {
+    disk_type    = "pd-standard"
+    disk_size_gb = 30
+    machine_type = "e2-medium"
+  }
 
   # VPC-native networking (required for Istio and modern GKE)
   ip_allocation_policy {
@@ -59,7 +66,7 @@ resource "google_container_cluster" "cluster" {
   datapath_provider = "ADVANCED_DATAPATH"
 
   lifecycle {
-    ignore_changes = [initial_node_count]
+    ignore_changes = [initial_node_count, node_config]
   }
 }
 

@@ -599,3 +599,17 @@ Agents: read this section before writing any shell script or Terraform code.
 3. Wait for old pd-balanced disks to be deleted (confirm with `gcloud compute disks list`).
 4. Run `terraform apply` — with 0 existing SSD nodes, the new pd-standard pool is created with no quota conflict.
 **Prevention:** If you must replace a node pool from pd-balanced to pd-standard, first scale to 0 manually (step 2), then apply. The module now uses `upgrade_settings { max_surge = 0, max_unavailable = 1 }` to avoid surge capacity requirements. The safest fix was to delete the cluster entirely (outside Terraform) and recreate it fresh with pd-standard disks: `gcloud container clusters delete <name> --region=<region> --project=<project> --quiet`, then `terraform state rm module.gke.google_container_cluster.cluster module.gke.google_container_node_pool.nodes`, then `terraform apply`.
+
+### GKE initial node pool uses pd-balanced by default — hits SSD quota on fresh cluster creation
+
+**Context:** `terraform/modules/gke/main.tf`, `google_container_cluster` resource with `remove_default_node_pool = true`.
+**Root cause:** When creating a GKE cluster with `remove_default_node_pool = true` and `initial_node_count = 1`, GKE internally creates a temporary default pool using its own defaults — including `pd-balanced` (SSD) disk type. With 3 zones × 100 GB pd-balanced = 300 GB, this exceeds the 250 GB SSD quota before the pool can even be removed. The custom `google_container_node_pool` (with pd-standard) never gets a chance to be created.
+**Fix:** Add a `node_config` block directly inside `google_container_cluster` to override the disk type for the temporary initial pool:
+```hcl
+node_config {
+  disk_type    = "pd-standard"
+  disk_size_gb = 30
+  machine_type = "e2-medium"
+}
+```
+Also add `node_config` to the `lifecycle { ignore_changes = [...] }` list to prevent drift detection after the initial pool is removed. The gke module already has this fix applied.
