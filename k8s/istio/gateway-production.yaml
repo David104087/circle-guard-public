@@ -1,0 +1,49 @@
+# Istio Ingress Gateway for external traffic into circleguard-dev.
+# Exposes gateway-service (8087) as the single public entry point.
+# TLS via cert-manager added in Phase 8.
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: circleguard-gateway
+  namespace: circleguard-production
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+---
+# Route external traffic to gateway-service (main API entry point).
+# Canary: adjust weights below to shift traffic between v1 and v2 for gateway-service.
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: circleguard-ingress
+  namespace: circleguard-production
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - circleguard-gateway
+  http:
+    - match:
+        - uri:
+            prefix: "/"
+      route:
+        - destination:
+            host: gateway-service
+            port:
+              number: 8087
+            subset: v1
+          weight: 100
+        - destination:
+            host: gateway-service
+            port:
+              number: 8087
+            subset: v2
+          weight: 0

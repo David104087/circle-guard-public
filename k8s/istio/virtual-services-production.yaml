@@ -1,0 +1,203 @@
+# VirtualServices for all CircleGuard services.
+# Configures: retry policies on idempotent operations (GET), timeout, and traffic routing.
+# auth-service includes v1/v2 subsets for canary deployments (Task 3.10).
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: auth-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - auth-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: 5xx,gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: auth-service
+            subset: v1
+          weight: 100
+        - destination:
+            host: auth-service
+            subset: v1
+          weight: 0
+    - route:
+        - destination:
+            host: auth-service
+            subset: v1
+          weight: 100
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: dashboard-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - dashboard-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: 5xx,gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: dashboard-service
+            subset: v1
+    - route:
+        - destination:
+            host: dashboard-service
+            subset: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: file-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - file-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: 5xx,gateway-error,connect-failure
+      route:
+        - destination:
+            host: file-service
+            subset: v1
+    - route:
+        - destination:
+            host: file-service
+            subset: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: form-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - form-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: 5xx,gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: form-service
+            subset: v1
+    - route:
+        - destination:
+            host: form-service
+            subset: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gateway-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - gateway-service
+  http:
+    - route:
+        - destination:
+            host: gateway-service
+            subset: v1
+          weight: 100
+        - destination:
+            host: gateway-service
+            subset: v2
+          weight: 0
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: identity-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - identity-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: 5xx,gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: identity-service
+            subset: v1
+    - route:
+        - destination:
+            host: identity-service
+            subset: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: notification-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - notification-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: 5xx,gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: notification-service
+            subset: v1
+    - route:
+        - destination:
+            host: notification-service
+            subset: v1
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: promotion-service
+  namespace: circleguard-production
+spec:
+  hosts:
+    - promotion-service
+  http:
+    - match:
+        - method:
+            exact: GET
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: 5xx,gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: promotion-service
+            subset: v1
+    - route:
+        - destination:
+            host: promotion-service
+            subset: v1

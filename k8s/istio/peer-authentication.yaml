@@ -1,0 +1,29 @@
+# Enforce STRICT mTLS for all services in all CircleGuard namespaces.
+# Requires all traffic to be mTLS-encrypted — plain HTTP connections are rejected.
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: circleguard-dev
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: circleguard-stage
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: circleguard-production
+spec:
+  mtls:
+    mode: STRICT

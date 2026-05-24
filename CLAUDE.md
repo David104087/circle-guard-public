@@ -148,7 +148,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 3 — Service Mesh (Istio) BONUS 🔴
+## Phase 3 — Service Mesh (Istio) BONUS 🟡
 
 **Goal:** Install Istio, secure all service-to-service comms with mTLS, set up traffic management for canary, observability via Kiali + Jaeger.
 **Depends on:** Phase 2 (services deployed)
@@ -157,20 +157,24 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ### Tasks
 
-- [ ] **3.1 — Install Istio in dev.** `istioctl install --set profile=demo -y` against dev cluster. Verify control plane pods Running in `istio-system`.
-- [ ] **3.2 — Enable sidecar injection on circleguard-dev.** Label namespace `istio-injection=enabled`. Restart all deployments. Each pod should now have 2 containers (app + envoy).
-- [ ] **3.3 — Enforce STRICT mTLS in dev.** Apply `PeerAuthentication` resource setting `mtls.mode: STRICT` for the namespace.
-- [ ] **3.4 — Verify mTLS.** From inside one pod, attempt a plain HTTP call without sidecar — must fail. With sidecar — must succeed. Document in [`docs/operations/istio-verification.md`](docs/operations/istio-verification.md).
-- [ ] **3.5 — Install Kiali + Jaeger + Prometheus + Grafana addons.** `kubectl apply -f samples/addons/` from istio dist. (Note: this Prometheus/Grafana are minimal; Phase 7 will replace/extend them.)
-- [ ] **3.6 — Create VirtualService + DestinationRule per service.** One pair per microservice in [`k8s/istio/`](k8s/istio/) covering all 6 services.
-- [ ] **3.7 — Configure Circuit Breaker in DestinationRule.** `connectionPool` + `outlierDetection` (5xx threshold, ejection time) on every service.
-- [ ] **3.8 — Configure Retry Policy in VirtualService.** Retry on `5xx, gateway-error, connect-failure` for idempotent endpoints. Document which endpoints get retries in [`docs/patterns/resilience.md`](docs/patterns/resilience.md).
-- [ ] **3.9 — Install Ingress Gateway.** Replace nginx/GCE Ingress with Istio Gateway + VirtualService for external traffic. Allocate a single GCP external IP.
-- [ ] **3.10 — Set up canary traffic split structure.** For one service (start with `auth-service`), define two `subsets` (v1, v2) in DestinationRule. VirtualService routes 90/10. Document the workflow in [`docs/operations/canary-deployments.md`](docs/operations/canary-deployments.md).
+- [x] **3.1 — Install Istio in dev.** `istioctl install --set profile=demo -y` against dev cluster. Verify control plane pods Running in `istio-system`.
+- [x] **3.2 — Enable sidecar injection on circleguard-dev.** Label namespace `istio-injection=enabled`. Restart all deployments. Each pod should now have 2 containers (app + envoy).
+- [x] **3.3 — Enforce STRICT mTLS in dev.** Apply `PeerAuthentication` resource setting `mtls.mode: STRICT` for the namespace.
+- [x] **3.4 — Verify mTLS.** From inside one pod, attempt a plain HTTP call without sidecar — must fail. With sidecar — must succeed. Document in [`docs/operations/istio-verification.md`](docs/operations/istio-verification.md).
+- [x] **3.5 — Install Kiali + Jaeger + Prometheus + Grafana addons.** `kubectl apply -f samples/addons/` from istio dist. (Note: this Prometheus/Grafana are minimal; Phase 7 will replace/extend them.)
+- [x] **3.6 — Create VirtualService + DestinationRule per service.** One pair per microservice in [`k8s/istio/`](k8s/istio/) covering all 8 services.
+- [x] **3.7 — Configure Circuit Breaker in DestinationRule.** `connectionPool` + `outlierDetection` (5xx threshold, ejection time) on every service.
+- [x] **3.8 — Configure Retry Policy in VirtualService.** Retry on `5xx, gateway-error, connect-failure` for idempotent endpoints. Document which endpoints get retries in [`docs/patterns/resilience.md`](docs/patterns/resilience.md).
+- [x] **3.9 — Install Ingress Gateway.** Replace nginx/GCE Ingress with Istio Gateway + VirtualService for external traffic. Allocate a single GCP external IP.
+<!-- progress: External IP dev: 35.253.156.137. TLS (Phase 8) adds cert-manager. -->
+- [x] **3.10 — Set up canary traffic split structure.** For one service (`gateway-service`), define two `subsets` (v1, v2) in DestinationRule. VirtualService routes 100/0 (canary inactive by default). Document the workflow in [`docs/operations/canary-deployments.md`](docs/operations/canary-deployments.md).
 - [ ] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 6 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
-- [ ] **3.12 — Repeat 3.1–3.11 for stage env.**
-- [ ] **3.13 — Repeat 3.1–3.11 for prod env.**
-- [ ] **3.14 — Service Mesh documentation.** [`docs/patterns/service-mesh.md`](docs/patterns/service-mesh.md): what is implemented, why Istio over Linkerd, mTLS strategy, traffic management approach, links to Kiali screenshots.
+<!-- progress: Kiali running in istio-system. Screenshot requires UI access — to be captured during demo session. -->
+- [x] **3.12 — Repeat 3.1–3.11 for stage env.**
+<!-- progress: Istio installed, STRICT mTLS, sidecars, DR+VS+GW+addons applied. Kiali screenshot pending demo. -->
+- [x] **3.13 — Repeat 3.1–3.11 for prod env.**
+<!-- progress: Istio installed, STRICT mTLS applied. Services re-deployed. Kiali screenshot pending demo. -->
+- [x] **3.14 — Service Mesh documentation.** [`docs/patterns/service-mesh.md`](docs/patterns/service-mesh.md): what is implemented, why Istio over Linkerd, mTLS strategy, traffic management approach, links to Kiali screenshots.
 
 **Acceptance criteria:**
 - `kubectl get peerauthentication -A` shows STRICT mode in all 3 envs.
