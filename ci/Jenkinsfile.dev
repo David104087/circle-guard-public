@@ -168,6 +168,9 @@ pipeline {
         }
 
         stage('Deploy to K8s DEV') {
+            environment {
+                USE_GKE_GCLOUD_AUTH_PLUGIN = 'True'
+            }
             steps {
                 sh '''
                     kubectl apply -f k8s/00-namespaces.yaml
