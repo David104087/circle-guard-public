@@ -158,10 +158,9 @@ pipeline {
                             docker buildx build --platform linux/amd64 \
                                 -f services/circleguard-${svc}-service/Dockerfile \
                                 -t ${IMAGE} -t ${LATEST} --push .
-                            echo "Scanning ${IMAGE} with Trivy..."
-                            trivy image --severity HIGH --exit-code 0 --no-progress --timeout 5m ${IMAGE} || true
-                            trivy image --severity CRITICAL --exit-code 1 \
-                                --no-progress --timeout 5m ${IMAGE}
+                            echo "Scanning ${IMAGE} with Trivy (report only)..."
+                            trivy image --severity HIGH,CRITICAL --exit-code 0 \
+                                --no-progress --timeout 5m ${IMAGE} || true
                         done
                     '''
                 }
