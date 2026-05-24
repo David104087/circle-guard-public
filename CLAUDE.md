@@ -588,3 +588,14 @@ Agents: read this section before writing any shell script or Terraform code.
 **Context:** `terraform/modules/gke/`, `google_container_node_pool` resource.
 **Root cause:** If `terraform apply` fails after creating a resource in GCP but before writing to remote state (network blip, timeout, etc.), the next `apply` tries to create the resource again and fails with "already exists".
 **Fix:** Use `terraform import <resource_address> <resource_id>` to bring the existing resource into the state, then re-run `terraform apply`. For GKE node pools the import ID format is: `projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/nodePools/<POOL>`.
+
+### GKE node pool replacement fails with SSD quota + INVALID_STATE_FOR_UPDATE
+
+**Context:** `terraform/modules/gke/`, node pool replacement (destroy + create) on `circleguard-dev`.
+**Root cause:** When replacing a node pool that uses `pd-balanced` (SSD, 100 GB/node) with one using `pd-standard`, GKE's rolling update internally creates a **surge node** with the OLD disk config (pd-balanced) before deleting old nodes. With `upgrade_settings { max_surge = 1, max_unavailable = 0 }` and 3 zones, this temporarily requires 300 GB SSD (> 250 GB quota). This leaves the cluster in `ERROR` state and subsequent GKE API calls return `INVALID_STATE_FOR_UPDATE`.
+**Fix sequence:**
+1. Wait for the cluster to exit ERROR on its own (GKE auto-repair, ~10–30 min). Do NOT force operations while in this state.
+2. Once cluster is `RUNNING`, scale the node pool to 0: `gcloud container clusters resize <cluster> --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=<PROJECT> --quiet`
+3. Wait for old pd-balanced disks to be deleted (confirm with `gcloud compute disks list`).
+4. Run `terraform apply` — with 0 existing SSD nodes, the new pd-standard pool is created with no quota conflict.
+**Prevention:** If you must replace a node pool from pd-balanced to pd-standard, first scale to 0 manually (step 2), then apply. Also consider setting `upgrade_settings { max_surge = 0, max_unavailable = 1 }` to avoid needing surge capacity.
