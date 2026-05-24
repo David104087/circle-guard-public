@@ -39,7 +39,7 @@ graph TB
         subgraph PROD["VPC: circleguard-prod (10.30.0.0/16)"]
             SN_PRD["Subnet: 10.30.0.0/24\nPods: 10.30.4.0/22\nSvcs: 10.30.8.0/24"]
             subgraph GKE_PRD["GKE: circleguard-prod (regional)"]
-                NP_PRD["Node Pool: default-pool\ne2-standard-4 regular\n1–5 nodes/zone"]
+                NP_PRD["Node Pool: default-pool\ne2-standard-2 regular\n0–5 nodes/zone"]
                 NS_PRD["Namespace: circleguard-production\n6 microservices"]
             end
             LB_PRD["GCP External LB"]

@@ -18,11 +18,11 @@ module "gke" {
   pods_range_name     = module.vpc.pods_range_name
   services_range_name = module.vpc.services_range_name
   node_count          = 1
-  min_node_count      = 1
+  min_node_count      = 0
   max_node_count      = 5
-  machine_type        = "e2-standard-4"
+  machine_type        = "e2-standard-2"
   use_spot            = false
-  disk_size_gb        = 100
+  disk_size_gb        = 50
 }
 
 module "secrets" {

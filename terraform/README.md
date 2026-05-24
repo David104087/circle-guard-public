@@ -22,7 +22,7 @@ terraform/
   envs/
     dev/              1 node/zone, Spot e2-standard-2, autoscale 0–3
     stage/            1 node/zone, Spot e2-standard-2, autoscale 0–3
-    prod/             1 node/zone, regular e2-standard-4, autoscale 1–5
+    prod/             1 node/zone, regular e2-standard-2, autoscale 0–5
 ```
 
 ## Remote state
@@ -74,10 +74,10 @@ terraform destroy
 
 | Variable      | dev              | stage            | prod             |
 |---------------|------------------|------------------|------------------|
-| machine_type  | e2-standard-2    | e2-standard-2    | e2-standard-4    |
+| machine_type  | e2-standard-2    | e2-standard-2    | e2-standard-2    |
 | use_spot      | true             | true             | false            |
 | node_count    | 1/zone           | 1/zone           | 1/zone           |
-| min_nodes     | 0/zone           | 0/zone           | 1/zone           |
+| min_nodes     | 0/zone           | 0/zone           | 0/zone           |
 | max_nodes     | 3/zone           | 3/zone           | 5/zone           |
 
 ## Cost management

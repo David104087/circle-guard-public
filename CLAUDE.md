@@ -83,29 +83,29 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 1 — Terraform Infrastructure (20% of grade) 🔴
+## Phase 1 — Terraform Infrastructure (20% of grade) 🟢
 
 **Goal:** Provision GKE + supporting GCP resources via modular Terraform for dev/stage/prod.
 **Depends on:** Phase 0
 
 ### Tasks
 
-- [ ] **1.1 — Remote state backend created.** GCS bucket `circle-guard-tfstate-<suffix>` with versioning enabled. Bucket name written to [`terraform/backend.tf`](terraform/backend.tf).
-- [ ] **1.2 — Module: `terraform/modules/vpc/`.** Inputs: project_id, region, name. Outputs: network, subnet self-links. Creates VPC + single subnet + firewall rules for internal traffic.
-- [ ] **1.3 — Module: `terraform/modules/gke/`.** Inputs: project_id, region, network, subnet, node_count, machine_type. Outputs: cluster name, endpoint, kubeconfig. Regional GKE with 1 node per zone or zonal with N nodes (cheaper). Uses Workload Identity. Includes node autoscaling.
-- [ ] **1.4 — Module: `terraform/modules/artifact_registry/`.** Creates a Docker repo `circleguard` in `us-central1`. Outputs the repo URL.
-- [ ] **1.5 — Module: `terraform/modules/secrets/`.** Creates Secret Manager secrets for DB passwords, JWT secrets, Docker Hub credentials. Iterates over a map variable.
-- [ ] **1.6 — Module: `terraform/modules/iam/`.** ServiceAccounts for: GKE nodes, Jenkins, External Secrets Operator, each microservice (via Workload Identity).
-- [ ] **1.7 — Env `terraform/envs/dev/`.** `main.tf` calls all modules with dev sizing (1–2 nodes, e2-standard-2). `terraform.tfvars` checked in (no secrets). `backend.tf` points to GCS bucket with prefix `envs/dev`.
-- [ ] **1.8 — Env `terraform/envs/stage/`.** Same as dev but stage sizing (2 nodes, e2-standard-2). Prefix `envs/stage`.
-- [ ] **1.9 — Env `terraform/envs/prod/`.** Same but prod sizing (3 nodes, e2-standard-4 or autoscaling 2–5). Prefix `envs/prod`.
-- [ ] **1.10 — `terraform fmt` + `terraform validate` clean.** Run on all envs, no errors.
-- [ ] **1.11 — Dev env applied successfully.** `terraform apply` in `envs/dev/` succeeds. `gcloud container clusters list` shows the cluster.
-- [ ] **1.12 — Stage env applied successfully.** Same as 1.11 for stage.
-- [ ] **1.13 — Prod env applied successfully.** Same as 1.11 for prod.
-- [ ] **1.14 — kubeconfig generated for all 3 envs.** Files `~/.kube/circleguard-dev`, `~/.kube/circleguard-stage`, `~/.kube/circleguard-prod`. `kubectl get nodes` works against each.
-- [ ] **1.15 — Architecture diagram drawn.** [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) with a Mermaid diagram showing VPC → GKE → Pods → External LB. Include all 3 envs.
-- [ ] **1.16 — Terraform README written.** [`terraform/README.md`](terraform/README.md) explaining module layout, how to apply each env, how to destroy.
+- [x] **1.1 — Remote state backend created.** GCS bucket `circle-guard-tfstate-<suffix>` with versioning enabled. Bucket name written to [`terraform/backend.tf`](terraform/backend.tf).
+- [x] **1.2 — Module: `terraform/modules/vpc/`.** Inputs: project_id, region, name. Outputs: network, subnet self-links. Creates VPC + single subnet + firewall rules for internal traffic.
+- [x] **1.3 — Module: `terraform/modules/gke/`.** Inputs: project_id, region, network, subnet, node_count, machine_type. Outputs: cluster name, endpoint, kubeconfig. Regional GKE with 1 node per zone or zonal with N nodes (cheaper). Uses Workload Identity. Includes node autoscaling.
+- [x] **1.4 — Module: `terraform/modules/artifact_registry/`.** Creates a Docker repo `circleguard` in `us-central1`. Outputs the repo URL.
+- [x] **1.5 — Module: `terraform/modules/secrets/`.** Creates Secret Manager secrets for DB passwords, JWT secrets, Docker Hub credentials. Iterates over a map variable.
+- [x] **1.6 — Module: `terraform/modules/iam/`.** ServiceAccounts for: GKE nodes, Jenkins, External Secrets Operator, each microservice (via Workload Identity).
+- [x] **1.7 — Env `terraform/envs/dev/`.** `main.tf` calls all modules with dev sizing (1–2 nodes, e2-standard-2). `terraform.tfvars` checked in (no secrets). `backend.tf` points to GCS bucket with prefix `envs/dev`.
+- [x] **1.8 — Env `terraform/envs/stage/`.** Same as dev but stage sizing (2 nodes, e2-standard-2). Prefix `envs/stage`.
+- [x] **1.9 — Env `terraform/envs/prod/`.** Same but prod sizing (all envs e2-standard-2, autoscale 0–5). Prefix `envs/prod`.
+- [x] **1.10 — `terraform fmt` + `terraform validate` clean.** Run on all envs, no errors.
+- [x] **1.11 — Dev env applied successfully.** `terraform apply` in `envs/dev/` succeeds. `gcloud container clusters list` shows the cluster.
+- [x] **1.12 — Stage env applied successfully.** Same as 1.11 for stage.
+- [x] **1.13 — Prod env applied successfully.** Same as 1.11 for prod.
+- [x] **1.14 — kubeconfig generated for all 3 envs.** Files `~/.kube/circleguard-dev`, `~/.kube/circleguard-stage`, `~/.kube/circleguard-prod`. `kubectl get nodes` works against each.
+- [x] **1.15 — Architecture diagram drawn.** [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) with a Mermaid diagram showing VPC → GKE → Pods → External LB. Include all 3 envs.
+- [x] **1.16 — Terraform README written.** [`terraform/README.md`](terraform/README.md) explaining module layout, how to apply each env, how to destroy.
 
 **Acceptance criteria:**
 - All `terraform/envs/<env>/` directories `terraform plan` cleanly with no diff after apply.
@@ -613,3 +613,27 @@ node_config {
 }
 ```
 Also add `node_config` to the `lifecycle { ignore_changes = [...] }` list to prevent drift detection after the initial pool is removed. The gke module already has this fix applied.
+
+### IN_USE_ADDRESSES quota exceeded when applying multiple GKE clusters in us-central1
+
+**Context:** `terraform/envs/stage/` and `terraform/envs/prod/` apply, after `envs/dev/` was already applied.
+**Root cause:** GCP quota `IN_USE_ADDRESSES` in us-central1 is limited to 8. Each regional GKE cluster node takes an external IP, and the GKE control plane may also consume IPs. With dev already having 3 nodes (3 IPs) plus control plane IPs, applying stage simultaneously exceeded the limit. The stage cluster entered `ERROR` state.
+**Fix:**
+1. Scale the already-running cluster(s) to 0 nodes before applying the next env: `gcloud container clusters resize <cluster> --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet`
+2. If the target cluster is in `ERROR` state, delete it outside Terraform: `gcloud container clusters delete <cluster> --region=us-central1 --project=tallerfinal-496702 --quiet`
+3. Remove it from Terraform state: `terraform state rm module.gke.google_container_cluster.cluster`
+4. Re-run `terraform apply` with other clusters at 0 nodes.
+**Prevention:** Apply envs sequentially, one at a time, with all other clusters scaled to 0. Never apply more than one env simultaneously.
+
+### CPUS_ALL_REGIONS quota prevents running all 3 GKE clusters simultaneously
+
+**Context:** `terraform/envs/prod/` apply, with dev and stage clusters still running nodes.
+**Root cause:** GCP quota `CPUS_ALL_REGIONS` is limited to 12 vCPUs across all regions. A regional GKE cluster with 1 node/zone across 3 zones (us-central1-a/b/c) = 3 nodes. With e2-standard-2 (2 vCPUs/node): 3 nodes × 2 vCPUs = 6 vCPUs per cluster. Three clusters simultaneously = 18 vCPUs → exceeds quota. Even two clusters at 1 node/zone = 12 vCPUs, leaving 0 for the third.
+**Fix:** Scale ALL other clusters to 0 simultaneously before applying or scaling up a new cluster:
+```bash
+gcloud container clusters resize circleguard-dev --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet &
+gcloud container clusters resize circleguard-stage --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet &
+wait
+```
+Then apply/resize the target cluster. All envs use `min_node_count = 0` so the autoscaler can scale to 0 between sessions.
+**Prevention:** `ci/session-stop.sh` scales all clusters to 0 between sessions. Never leave 2+ clusters with active nodes simultaneously unless the total vCPU count is ≤ 12.
