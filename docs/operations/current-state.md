@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-18 — Phase 1 Terraform en progreso
+2026-05-24 — Dev cluster siendo recreado (SSD quota fix); stage/prod pendiente
 
 ---
 
@@ -45,12 +45,14 @@
 
 ## Infraestructura GCP (Terraform)
 
-### Entorno dev — ✅ APLICADO
+### Entorno dev — ⏳ RECREANDO (terraform apply en curso)
+
+> El cluster original tuvo un error de cuota SSD. Fue destruido y se está recreando con pd-standard.
 
 | Recurso | Nombre / Valor |
 |---------|---------------|
-| GKE Cluster | `circleguard-dev` (regional, us-central1) |
-| Node pool | `default-pool` — e2-standard-2 Spot — 0-3 nodos/zona |
+| GKE Cluster | `circleguard-dev` (regional, us-central1) — PROVISIONING |
+| Node pool | `default-pool` — e2-standard-2 Spot — 0-3 nodos/zona — pd-standard 50 GB |
 | VPC | `circleguard-dev` |
 | Subnet | `circleguard-dev-subnet` — 10.10.0.0/24 |
 | Pods CIDR | 10.10.4.0/22 |
