@@ -6,6 +6,16 @@ plugins {
     kotlin("plugin.jpa")
 }
 
+sonarqube {
+    properties {
+        property("sonar.projectKey", "circleguard-promotion-service")
+        property("sonar.projectName", "circleguard-promotion-service")
+        property("sonar.sources", "src/main/kotlin")
+        property("sonar.tests", "src/test/kotlin")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
+    }
+}
+
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:3.2.4"))
     testImplementation(enforcedPlatform("org.testcontainers:testcontainers-bom:1.20.4"))

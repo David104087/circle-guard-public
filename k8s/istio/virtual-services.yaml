@@ -25,13 +25,17 @@ spec:
           weight: 100
         - destination:
             host: auth-service
-            subset: v1
+            subset: v2
           weight: 0
     - route:
         - destination:
             host: auth-service
             subset: v1
           weight: 100
+        - destination:
+            host: auth-service
+            subset: v2
+          weight: 0
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService

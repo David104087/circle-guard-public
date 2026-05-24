@@ -44,7 +44,7 @@ All user stories are created as GitHub Issues in the fork repository with phase 
 
 **Sprint 1 Definition of Done:**
 - Three GKE clusters (dev/stage/prod) provisioned via Terraform and reachable with `kubectl`.
-- All 6 microservices Running in each namespace with health endpoints returning 200.
+- All 8 microservices Running in each namespace (6 running now; gateway+identity images built in Phase 4).
 - Istio mTLS STRICT mode enforced; Kiali graph shows lock icons on all edges.
 - Smoke test script `ci/smoke-test.sh` passes against all three environments.
 
@@ -69,7 +69,7 @@ All user stories are created as GitHub Issues in the fork repository with phase 
 **Sprint 2 Definition of Done:**
 - All pipelines include SonarQube + Trivy; master pipeline performs canary deployment.
 - JaCoCo coverage ≥ 60% published to Jenkins; ZAP scan archives report in pipeline.
-- Prometheus/Grafana/ELK/Jaeger stack running; dashboards show live data for all 6 services.
+- Prometheus/Grafana/ELK/Jaeger stack running; dashboards show live data for all 8 services.
 - No plaintext secrets in `k8s/`; RBAC enforced per service; TLS on public endpoints.
 - GitHub Release created automatically with parsed release notes on master pipeline run.
 - `README.md` and all `docs/` deliverables complete per `Workshop_statement.md § Entregables`.

@@ -21,6 +21,8 @@ graph TB
                     DASH_D["dashboard-service :8084"]
                     FILE_D["file-service :8085"]
                     FORM_D["form-service :8086"]
+                    GW_D["gateway-service :8087"]
+                    ID_D["identity-service :8083"]
                     NOTIF_D["notification-service :8082"]
                     PROMO_D["promotion-service :8088"]
                 end
@@ -32,7 +34,7 @@ graph TB
             SN_STG["Subnet: 10.20.0.0/24\nPods: 10.20.4.0/22\nSvcs: 10.20.8.0/24"]
             subgraph GKE_STG["GKE: circleguard-stage (regional)"]
                 NP_STG["Node Pool: default-pool\ne2-standard-2 Spot\n0–3 nodes/zone"]
-                NS_STG["Namespace: circleguard-stage\n6 microservices"]
+                NS_STG["Namespace: circleguard-stage\n8 microservices"]
             end
         end
 
@@ -40,7 +42,7 @@ graph TB
             SN_PRD["Subnet: 10.30.0.0/24\nPods: 10.30.4.0/22\nSvcs: 10.30.8.0/24"]
             subgraph GKE_PRD["GKE: circleguard-prod (regional)"]
                 NP_PRD["Node Pool: default-pool\ne2-standard-2 regular\n0–5 nodes/zone"]
-                NS_PRD["Namespace: circleguard-production\n6 microservices"]
+                NS_PRD["Namespace: circleguard-production\n8 microservices"]
             end
             LB_PRD["GCP External LB"]
         end
