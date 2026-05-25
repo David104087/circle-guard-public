@@ -8,7 +8,7 @@ Project and operational context for AI-assisted development on this repository.
 
 1. **No AI mentions in git commits.** Never add `Co-Authored-By: Claude`, `Generated with Claude Code`, or any similar line to commit messages or PR descriptions. Commits must appear as normal human commits.
 2. **Only push to the fork.** The working remote is `https://github.com/David104087/circle-guard-public.git`. Never push or open PRs toward the upstream (original) repository.
-3. CircleGuard follows **GitHub Flow**, the principal branch is master.
+3. CircleGuard follows **GitHub Flow**, the principal branch is master. So new branches must be `feat/...` for features and `fix/...` for bug fixes. No long-lived `develop` branch. Remember create branches.
 4. **Update the Implementation Plan as you go.** Every time you complete a task from the "Proyecto Final – Implementation Plan" section below, you MUST flip its checkbox from `- [ ]` to `- [x]` in the same commit/turn that finishes the work. If you only partially complete a task, leave it unchecked and add a `<!-- progress: ... -->` comment under it describing what was done. Never leave plan state stale.
 5. **Read the plan before starting any task.** The plan declares dependencies between phases. Do not start tasks in a later phase if blocking tasks in an earlier phase are still `- [ ]`. If you believe a dependency is wrong, leave a note and ask before proceeding.
 6. **Session lifecycle — run the scripts automatically.**
