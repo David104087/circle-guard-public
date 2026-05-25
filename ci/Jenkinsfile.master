@@ -314,7 +314,7 @@ MANIFEST
                     git config user.name "CircleGuard CI"
                     ci/semver.sh
                     NEW_TAG=$(git describe --tags --abbrev=0)
-                    git push https://David104087:${GH_TOKEN}@github.com/David104087/circle-guard-public.git "${NEW_TAG}"
+                    git push "https://x-access-token:${GH_TOKEN}@github.com/David104087/circle-guard-public.git" "${NEW_TAG}"
                     gh release create "${NEW_TAG}" \
                         --title "Release ${NEW_TAG}" \
                         --notes-file "RELEASE_NOTES_${NEW_TAG}.md" \
