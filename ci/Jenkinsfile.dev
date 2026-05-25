@@ -152,7 +152,7 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                     sh '''
-                        for svc in auth dashboard file form notification promotion; do
+                        for svc in auth dashboard file form gateway identity notification promotion; do
                             IMAGE="${DOCKER_HUB_USER}/circleguard-${svc}:${IMAGE_TAG}"
                             LATEST="${DOCKER_HUB_USER}/circleguard-${svc}:latest"
                             docker buildx build --platform linux/amd64 \
@@ -185,7 +185,7 @@ pipeline {
                         k8s/istio/virtual-services.yaml | kubectl apply -f -
                     sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
                         k8s/istio/destination-rules.yaml | kubectl apply -f -
-                    for svc in auth-service dashboard-service file-service form-service notification-service promotion-service; do
+                    for svc in auth-service dashboard-service file-service form-service gateway-service identity-service notification-service promotion-service; do
                         kubectl rollout restart deployment/${svc} -n ${NAMESPACE}
                     done
                     kubectl rollout status deployment/auth-service -n ${NAMESPACE} --timeout=300s
