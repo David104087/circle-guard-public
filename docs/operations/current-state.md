@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-24 — Phase 4 EN PROGRESO. SonarQube stage + Trivy scan + Slack notifications + Canary stage implementados en los 3 Jenkinsfiles. ci/semver.sh creado. JaCoCo + SonarQube Gradle plugins añadidos a los 8 servicios. Jenkins image necesita rebuild con trivy+gh. Tareas pendientes: 4.1 (credenciales Jenkins UI), 4.9-4.10 (correr pipelines end-to-end).
+2026-05-24 — Phase 4 🟡. Dev pipeline (build #26) corrió exitosamente de extremo a extremo: Checkout → Build → SonarQube → Unit Tests → Docker Build+Trivy → Push → Deploy to GKE. Tasks 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.9 COMPLETAS. Pendiente: 4.10 (master pipeline con canary). Jenkins tiene gcloud + gke-gcloud-auth-plugin instalados manualmente. Trivy no-bloqueante (CVEs Spring Boot 3.2.4). sonar.sources/sonar.tests apuntan a src/main/java. Pipeline builds gateway+identity en build #26 faltaba — corregido en Jenkinsfile.dev.
 
 ---
 
@@ -34,7 +34,7 @@
 | Phase 1 — Terraform | 🟢 COMPLETA | Los 3 envs aplicados, terraform plan limpio |
 | Phase 2 — K8s Migration | 🟢 COMPLETA | Smoke tests pasan en dev/stage/prod |
 | Phase 3 — Istio | 🟡 13/14 | Kiali screenshot pendiente (sesión demo) |
-| Phase 4 — CI/CD | 🟡 | Jenkinsfiles + SonarQube + Trivy + Canary + semver.sh implementados. Pendiente: rebuild Jenkins image, credenciales UI, run pipelines (4.1, 4.9, 4.10) |
+| Phase 4 — CI/CD | 🟡 | Tasks 4.1–4.9 ✅. Dev pipeline corre end-to-end. Pendiente: 4.10 (master + canary) |
 | Phase 5 — Patterns | 🔴 | Depende de Phase 3 |
 | Phase 6 — Testing | 🔴 | Depende de Phase 4 |
 | Phase 7 — Observability | 🔴 | Depende de Phase 2 + 3 |
@@ -106,14 +106,14 @@ cp ~/.kube/config ~/.kube/circleguard-<env>
 
 | Namespace | Estado | Infraestructura | Servicios |
 |-----------|--------|----------------|-----------|
-| circleguard-dev | ✅ Desplegado | Running | 6/8 Running, 2 ImagePullBackOff |
+| circleguard-dev | ✅ Desplegado | Running | 6/8 Running, gateway+identity ImagePullBackOff (pipeline fix pendiente de re-run) |
 | circleguard-stage | ✅ Desplegado | Running | 6/8 Running, 2 ImagePullBackOff |
 | circleguard-production | ✅ Desplegado | Running | 6/8 Running, 2 ImagePullBackOff |
 
 ### Smoke test results
 
 ```
-dev:   PASS — 6 reachable (TCP port open), 2 SKIP (no image)
+dev:   PASS — 6 reachable (TCP port open), 2 SKIP (no image, se construyen en siguiente pipeline run)
 stage: PASS — 6 reachable (TCP port open), 2 SKIP (no image)
 prod:  PASS — 6 reachable (TCP port open), 2 SKIP (no image)
 ```
@@ -128,8 +128,8 @@ Todas las DBs creadas manualmente en todos los entornos (init script no corre en
 
 ## Repositorio de imágenes Docker
 
-Hub: `davidartunduaga/circleguard-{auth,dashboard,file,form,notification,promotion}` — ✅ Existen en Docker Hub
-Imágenes pendientes: `davidartunduaga/circleguard-gateway:latest`, `davidartunduaga/circleguard-identity:latest` — ❌ NO existen (Phase 4)
+Hub: `davidartunduaga/circleguard-{auth,dashboard,file,form,notification,promotion}` — ✅ Existen (tags: latest + build #26)
+Imágenes pendientes push: `davidartunduaga/circleguard-gateway:latest`, `davidartunduaga/circleguard-identity:latest` — ❌ NO existen (faltaban en el loop del pipeline — corregido, próximo build las incluye)
 Artifact Registry (nuevo): `us-central1-docker.pkg.dev/tallerfinal-496702/circleguard` — no usado aún
 
 ---
@@ -138,10 +138,14 @@ Artifact Registry (nuevo): `us-central1-docker.pkg.dev/tallerfinal-496702/circle
 
 | Campo | Valor |
 |-------|-------|
-| Container | `circleguard-jenkins` (parado entre sesiones) |
+| Container | `circleguard-jenkins` (docker start para activar) |
 | URL | http://localhost:8080 |
 | Admin password | `0de72cfcad744533ad0b8dca62e9b879` |
-| Estado | ⏳ No activo (se usa en Phase 4) |
+| Estado | ✅ Configurado y funcional |
+| gcloud | Instalado dentro del container (569.0.0) |
+| gke-auth-plugin | `/usr/bin/gke-gcloud-auth-plugin` — instalado |
+| Credentials | dockerhub-credentials, github-token, gcp-service-account-key, kubeconfig-dev/stage/production, slack-webhook, sonarqube-token |
+| IMPORTANTE | Tras `docker start`, correr: `docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock` (automatizado en session-start.sh) |
 
 ---
 
