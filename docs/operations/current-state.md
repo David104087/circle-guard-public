@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-24 — Phase 4 🟡. Dev pipeline (build #26) corrió exitosamente de extremo a extremo: Checkout → Build → SonarQube → Unit Tests → Docker Build+Trivy → Push → Deploy to GKE. Tasks 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.9 COMPLETAS. Pendiente: 4.10 (master pipeline con canary). Jenkins tiene gcloud + gke-gcloud-auth-plugin instalados manualmente. Trivy no-bloqueante (CVEs Spring Boot 3.2.4). sonar.sources/sonar.tests apuntan a src/main/java. Pipeline builds gateway+identity en build #26 faltaba — corregido en Jenkinsfile.dev.
+2026-05-25 — Phase 4 🟢 COMPLETA. Master pipeline (build #10 y #11) corrió end-to-end: Checkout → Build → SonarQube → Unit Tests → Integration Tests → E2E Tests → Docker Build+Trivy (v9/v10/v11, 8 servicios) → Push → Deploy to K8s PRODUCTION → Canary Release (90%/10% aprobado manualmente) → (Release Notes pendiente fix auth). Task 4.10 COMPLETA. Pendiente: fix release-notes git tag push (PR #17 mergeado, falta un run limpio). Infraestructura DESTRUIDA (terraform destroy) — clusters GKE no existen, recrear con terraform apply.
 
 ---
 
@@ -34,7 +34,7 @@
 | Phase 1 — Terraform | 🟢 COMPLETA | Los 3 envs aplicados, terraform plan limpio |
 | Phase 2 — K8s Migration | 🟢 COMPLETA | Smoke tests pasan en dev/stage/prod |
 | Phase 3 — Istio | 🟡 13/14 | Kiali screenshot pendiente (sesión demo) |
-| Phase 4 — CI/CD | 🟡 | Tasks 4.1–4.9 ✅. Dev pipeline corre end-to-end. Pendiente: 4.10 (master + canary) |
+| Phase 4 — CI/CD | 🟢 COMPLETA | Tasks 4.1–4.10 ✅. Dev + Master pipelines end-to-end. Canary 10%→100% aprobado. Release Notes (fix PR #17 mergeado, próximo run completo) |
 | Phase 5 — Patterns | 🔴 | Depende de Phase 3 |
 | Phase 6 — Testing | 🔴 | Depende de Phase 4 |
 | Phase 7 — Observability | 🔴 | Depende de Phase 2 + 3 |

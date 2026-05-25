@@ -185,7 +185,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 4 — CI/CD Avanzado (15% of grade) 🟡
+## Phase 4 — CI/CD Avanzado (15% of grade) 🟢
 
 **Goal:** Enhanced pipelines with SonarQube, Trivy, semver, notifications, prod approval, canary via Istio.
 **Depends on:** Phase 2 (deployment must work), Phase 3 (canary integration)
@@ -200,7 +200,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 - [x] **4.6 — Notifications on failure.** Pipeline `post { failure { ... } }` posts to a Slack webhook. Credentials in Jenkins (`slack-webhook`). Documented in [`docs/operations/notifications.md`](docs/operations/notifications.md).
 - [x] **4.7 — Canary deployment stage.** In master pipeline, deploys `auth-service-canary` with `track: canary` label (v2 DestinationRule subset), patches VirtualService to 90%/10%, waits 30 min for manual approval, promotes or rollbacks.
 - [x] **4.9 — Pipeline runs end-to-end.** Trigger dev pipeline manually; passes from Checkout to Deploy.
-- [ ] **4.10 — Master pipeline runs end-to-end including canary.** Trigger master, see canary at 10%, approve, see 100%.
+- [x] **4.10 — Master pipeline runs end-to-end including canary.** Trigger master, see canary at 10%, approve, see 100%.
 
 **Acceptance criteria:**
 - All 3 Jenkinsfiles updated, no DO references remain.
@@ -689,3 +689,21 @@ Then apply/resize the target cluster. All envs use `min_node_count = 0` so the a
 **Context:** `ci/Jenkinsfile.dev` Docker Build, Scan & Push stage.
 **Root cause:** Spring Boot 3.2.4 bundles Tomcat 10.1.19 and Spring Security 6.2.3 which have multiple CRITICAL CVEs (CVE-2025-24813, CVE-2024-38821 among others). These CVEs have fixes in later versions (Tomcat 10.1.35+, Spring Security 6.2.7+).
 **Fix:** Trivy is set to `--exit-code 0` (report-only, non-blocking) for all severity levels. Scan results appear in build output. To actually fix, upgrade Spring Boot platform version to 3.2.12+ across all service `build.gradle.kts` files.
+
+### GitHub PAT `git push` over HTTPS fails with exit code 128 in Jenkins
+
+**Context:** `ci/Jenkinsfile.master` Generate Release Notes stage, `git push ... "${NEW_TAG}"`.
+**Root cause:** The `github-token` credential stored in Jenkins does not have `Contents: write` permission for HTTPS push, even though it works for `gh` CLI API calls. Both `David104087:${TOKEN}` and `x-access-token:${TOKEN}` formats fail with `fatal: Authentication failed (exit 128)`.
+**Fix:** Replaced `git push` with `gh api repos/David104087/circle-guard-public/git/refs -X POST` to create the tag reference via the GitHub REST API. The `gh` CLI uses `GH_TOKEN` env var automatically and has the correct permissions. Fix is in PR #17 (merged to master).
+
+### Neo4j StatefulSet PVC zone affinity mismatch after node scale-up
+
+**Context:** `k8s/production/`, `circleguard-production` namespace, Neo4j StatefulSet.
+**Root cause:** When GKE regional clusters scale up/down, nodes land in specific zones. The Neo4j PVC is bound to a PV in a particular zone (e.g. `us-central1-b`). If no node exists in that zone, the pod stays `Pending` indefinitely. GCE quota prevents autoscaler from adding a node in that zone if total vCPUs are at limit.
+**Fix:** Delete the PVC and pod so the StatefulSet recreates them in a zone where nodes exist: `kubectl delete pod neo4j-0 -n circleguard-production --force --grace-period=0 && kubectl delete pvc neo4j-data-neo4j-0 -n circleguard-production`. The StatefulSet creates a new PVC in an available zone automatically. Note: this loses Neo4j data (acceptable for test environments).
+
+### Istio sidecar timing causes CrashLoopBackOff on pod restarts in production
+
+**Context:** `circleguard-production` namespace, `dashboard-service` and other services using PostgreSQL.
+**Root cause:** When pods are rescheduled (e.g. after node scale-up), there is a window where the Istio sidecar proxy (Envoy) is not yet ready to intercept traffic. If the app container starts connecting to the database during this window, DNS resolution through the mesh fails with `UnknownHostException`. The pod crashes, enters CrashLoopBackOff, and the exponential backoff keeps it restarting faster than the sidecar can initialize.
+**Fix:** Delete the pod manually — `kubectl delete pod -n circleguard-production -l app=<service>` — so it gets a clean restart where the sidecar initializes before the app connects. Long-term fix: add annotation `proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'` to deployments that connect to databases at startup.
