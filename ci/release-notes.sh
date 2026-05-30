@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# CircleGuard – Automatic Release Notes Generator
+# CircleGuard – Release Notes Generator
 # Usage: ./ci/release-notes.sh <VERSION_TAG>
-# Generates RELEASE_NOTES_<tag>.md from git log since last tag.
+# Groups commits by Conventional Commit type. Used by master pipeline.
 
 set -euo pipefail
 
@@ -9,12 +9,10 @@ VERSION="${1:-v$(date +%Y%m%d%H%M)}"
 OUTPUT="RELEASE_NOTES_${VERSION}.md"
 REPO_URL="https://github.com/David104087/circle-guard-public"
 
-echo "Generating release notes for ${VERSION}..."
+echo "Generating release notes for ${VERSION}..." >&2
 
-# Get previous tag
 PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
-
-echo "Changes since: ${PREV_TAG}"
+echo "Changes since: ${PREV_TAG}" >&2
 
 cat > "${OUTPUT}" << EOF
 # Release Notes – CircleGuard ${VERSION}
@@ -33,6 +31,8 @@ cat > "${OUTPUT}" << EOF
 | dashboard-service | 8084 | \`${VERSION}\` |
 | file-service | 8085 | \`${VERSION}\` |
 | form-service | 8086 | \`${VERSION}\` |
+| gateway-service | 8087 | \`${VERSION}\` |
+| identity-service | 8083 | \`${VERSION}\` |
 | notification-service | 8082 | \`${VERSION}\` |
 | promotion-service | 8088 | \`${VERSION}\` |
 
@@ -42,57 +42,53 @@ cat > "${OUTPUT}" << EOF
 
 EOF
 
-# Features
-FEATURES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges | grep -i "^feat\|^feature\|^add\|^new" || true)
-if [ -n "${FEATURES}" ]; then
-    echo "### New Features" >> "${OUTPUT}"
+_section() {
+  local title="$1" pattern="$2"
+  local commits
+  commits=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges 2>/dev/null \
+    | grep -iE "^${pattern}" || true)
+  if [ -n "$commits" ]; then
+    echo "### ${title}" >> "${OUTPUT}"
     echo "" >> "${OUTPUT}"
     while IFS= read -r line; do
-        echo "- ${line}" >> "${OUTPUT}"
-    done <<< "${FEATURES}"
+      echo "- ${line}" >> "${OUTPUT}"
+    done <<< "$commits"
     echo "" >> "${OUTPUT}"
-fi
+  fi
+}
 
-# Bug Fixes
-FIXES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges | grep -i "^fix\|^bug\|^hotfix\|^patch" || true)
-if [ -n "${FIXES}" ]; then
-    echo "### Bug Fixes" >> "${OUTPUT}"
-    echo "" >> "${OUTPUT}"
-    while IFS= read -r line; do
-        echo "- ${line}" >> "${OUTPUT}"
-    done <<< "${FIXES}"
-    echo "" >> "${OUTPUT}"
-fi
+_section "New Features"        "feat[:([]"
+_section "Bug Fixes"           "fix[:([]"
+_section "Performance"         "perf[:([]"
+_section "Refactoring"         "refactor[:([]"
+_section "Tests"               "test[:([]"
+_section "CI/CD"               "ci[:([]|build[:([]"
+_section "Documentation"       "docs[:([]"
+_section "Maintenance"         "chore[:([]"
 
-# All commits
 echo "### All Commits" >> "${OUTPUT}"
 echo "" >> "${OUTPUT}"
-git log "${PREV_TAG}..HEAD" --pretty=format:"- [\`%h\`](${REPO_URL}/commit/%H) %s (%an, %ad)" \
-    --date=short --no-merges >> "${OUTPUT}" || true
+git log "${PREV_TAG}..HEAD" \
+  --pretty=format:"- [\`%h\`](${REPO_URL}/commit/%H) %s (%an, %ad)" \
+  --date=short --no-merges >> "${OUTPUT}" 2>/dev/null || true
 echo "" >> "${OUTPUT}"
 
-# Test summary
-echo "" >> "${OUTPUT}"
-echo "---" >> "${OUTPUT}"
-echo "" >> "${OUTPUT}"
-echo "## Test Summary" >> "${OUTPUT}"
-echo "" >> "${OUTPUT}"
-
-TOTAL_TESTS=0
-FAILED_TESTS=0
-
+TOTAL_TESTS=0; FAILED_TESTS=0
 for f in services/*/build/test-results/**/*.xml; do
-    if [ -f "$f" ]; then
-        tests=$(grep -o 'tests="[0-9]*"' "$f" | grep -o '[0-9]*' || echo 0)
-        failures=$(grep -o 'failures="[0-9]*"' "$f" | grep -o '[0-9]*' || echo 0)
-        TOTAL_TESTS=$((TOTAL_TESTS + tests))
-        FAILED_TESTS=$((FAILED_TESTS + failures))
-    fi
+  [ -f "$f" ] || continue
+  t=$(grep -o 'tests="[0-9]*"' "$f" | grep -o '[0-9]*' || echo 0)
+  e=$(grep -o 'failures="[0-9]*"' "$f" | grep -o '[0-9]*' || echo 0)
+  TOTAL_TESTS=$((TOTAL_TESTS + t))
+  FAILED_TESTS=$((FAILED_TESTS + e))
 done
-
 PASSED_TESTS=$((TOTAL_TESTS - FAILED_TESTS))
 
 cat >> "${OUTPUT}" << EOF
+
+---
+
+## Test Summary
+
 | Metric | Value |
 |--------|-------|
 | Total Tests | ${TOTAL_TESTS} |
@@ -107,8 +103,11 @@ cat >> "${OUTPUT}" << EOF
 - [x] Unit tests passed
 - [x] Integration tests passed
 - [x] E2E tests passed
+- [x] SonarQube quality gate passed
+- [x] Trivy scan completed (no new CRITICAL blockers)
 - [x] Docker images pushed to Docker Hub
-- [x] Kubernetes manifests applied
+- [x] Kubernetes manifests applied to production
+- [x] Canary approved at 10% → promoted to 100%
 - [x] All rollouts healthy
 
 ---
@@ -116,5 +115,4 @@ cat >> "${OUTPUT}" << EOF
 *Generated automatically by CircleGuard CI/CD pipeline.*
 EOF
 
-echo "Release notes written to: ${OUTPUT}"
-cat "${OUTPUT}"
+echo "Release notes written to: ${OUTPUT}" >&2

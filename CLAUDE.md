@@ -303,18 +303,18 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 9 — Change Management & Release Notes (5% of grade) 🔴
+## Phase 9 — Change Management & Release Notes (5% of grade) 🟢
 
 **Goal:** Formal CM process, automated release notes, rollback plans, release tagging.
 **Depends on:** Phase 4 (semver script already exists)
 
 ### Tasks
 
-- [ ] **9.1 — Update `ci/release-notes.sh`.** Read commits since last semver tag, group by Conventional Commit type (feat/fix/chore/...), generate `RELEASE_NOTES_<version>.md`. Already exists from Taller 2 — extend it.
-- [ ] **9.2 — Auto-attach release notes to GitHub Release.** Pipeline step uses `gh release create <tag> --notes-file RELEASE_NOTES_<tag>.md`.
-- [ ] **9.3 — Change Management process document.** [`docs/operations/change-management.md`](docs/operations/change-management.md): who can request a change, who approves, what gates exist (SonarQube, Trivy, manual approval), how rollback is triggered.
-- [ ] **9.4 — Rollback runbook per service.** [`docs/operations/rollback.md`](docs/operations/rollback.md): exact commands for `kubectl rollout undo deployment/<svc> -n circleguard-production` plus Istio VirtualService weight reversal for canary failures.
-- [ ] **9.5 — Release tagging convention.** Tags follow `vMAJOR.MINOR.PATCH`. Documented in [`docs/operations/versioning.md`](docs/operations/versioning.md). Pipeline rejects manual tags that violate the convention.
+- [x] **9.1 — Update `ci/release-notes.sh`.** Read commits since last semver tag, group by Conventional Commit type (feat/fix/chore/...), generate `RELEASE_NOTES_<version>.md`. Already exists from Taller 2 — extend it.
+- [x] **9.2 — Auto-attach release notes to GitHub Release.** Pipeline step uses `gh release create <tag> --notes-file RELEASE_NOTES_<tag>.md`.
+- [x] **9.3 — Change Management process document.** [`docs/operations/change-management.md`](docs/operations/change-management.md): who can request a change, who approves, what gates exist (SonarQube, Trivy, manual approval), how rollback is triggered.
+- [x] **9.4 — Rollback runbook per service.** [`docs/operations/rollback.md`](docs/operations/rollback.md): exact commands for `kubectl rollout undo deployment/<svc> -n circleguard-production` plus Istio VirtualService weight reversal for canary failures.
+- [x] **9.5 — Release tagging convention.** Tags follow `vMAJOR.MINOR.PATCH`. Documented in [`docs/operations/versioning.md`](docs/operations/versioning.md). Pipeline rejects manual tags that violate the convention.
 
 **Acceptance criteria:**
 - Cutting a release produces a GitHub Release with parsed notes.
