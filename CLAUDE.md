@@ -209,7 +209,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 5 — Design Patterns (10% of grade) 🔴
+## Phase 5 — Design Patterns (10% of grade) 🟢
 
 **Goal:** Document existing patterns, implement 3 new patterns (one resilience, one config, one extra).
 **Depends on:** Phase 3 (Istio gives us the resilience pattern for free)
@@ -218,7 +218,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 - [x] **5.1 — Identify existing patterns.** Read all 8 services. Document each pattern found (API Gateway, Database per Service, Event-Driven via Kafka, JWT auth, k-anonymity privacy filter, etc.) in [`docs/patterns/existing.md`](docs/patterns/existing.md). At least 5 patterns documented with file references.
 - [x] **5.2 — Resilience pattern: Circuit Breaker + Retry (Istio).** Already implemented in Phase 3.7/3.8. Documented in [`docs/patterns/resilience.md`](docs/patterns/resilience.md). Just verify the doc explains *why* + *benefit*.
-- [ ] **5.3 — Configuration pattern: External Configuration.** Move all `application.yml` secrets to GCP Secret Manager via External Secrets Operator (ESO). Install ESO in each cluster. Create `ExternalSecret` resources that sync from Secret Manager → K8s Secrets. Services mount those secrets.
+- [x] **5.3 — Configuration pattern: External Configuration.** Move all `application.yml` secrets to GCP Secret Manager via External Secrets Operator (ESO). Install ESO in each cluster. Create `ExternalSecret` resources that sync from Secret Manager → K8s Secrets. Services mount those secrets.
 - [x] **5.4 — Third pattern: Sidecar (Istio envoy proxy).** Already implemented in Phase 3 via Istio sidecar injection. Document in [`docs/patterns/sidecar.md`](docs/patterns/sidecar.md): the sidecar offloads cross-cutting concerns (mTLS, retries, metrics) from application code.
 - [x] **5.5 — Patterns master document.** [`docs/patterns/README.md`](docs/patterns/README.md) lists all documented patterns (existing + new) with one-paragraph summaries and links.
 
