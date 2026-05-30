@@ -2,6 +2,8 @@ package com.circleguard.identity.service;
 
 import com.circleguard.identity.model.IdentityMapping;
 import com.circleguard.identity.repository.IdentityMappingRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.keygen.KeyGenerators;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class IdentityVaultService {
     private final IdentityMappingRepository repository;
+    private final MeterRegistry meterRegistry;
 
     @Value("${vault.hash-salt:circleguard-default-salt}")
     private String hashSalt;
@@ -37,7 +40,12 @@ public class IdentityVaultService {
                             .identityHash(hash)
                             .salt(salt)
                             .build();
-                    return repository.save(mapping).getAnonymousId();
+                    UUID anonymousId = repository.save(mapping).getAnonymousId();
+                    Counter.builder("identities_registered_total")
+                        .description("Total new anonymous identities provisioned in the vault")
+                        .register(meterRegistry)
+                        .increment();
+                    return anonymousId;
                 });
     }
 

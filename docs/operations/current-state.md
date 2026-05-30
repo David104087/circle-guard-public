@@ -7,7 +7,10 @@
 ---
 
 ## Última actualización
-2026-05-30 — **PROYECTO FINAL COMPLETO** 🟢 Phases 0–10 completadas. Dev cluster running (1 nodo, circleguard-dev). ESO instalado con ClusterSecretStore en dev. kube-prometheus-stack instalando. Infraestructura: terraform apply corrió, clusters dev y prod RUNNING.
+2026-05-30 — **PROYECTO FINAL COMPLETO** 🟢 Phases 0–10 completadas. Cierre de 3 huecos de auditoría: (1) 8 dashboards Grafana por servicio en `k8s/monitoring/dashboards/` (cargados vía sidecar + kustomization), (2) métrica de negocio Micrometer en los 8 servicios (antes solo 3), (3) primera release `v0.1.0` con `RELEASE_NOTES_v0.1.0.md` + tag + GitHub Release. Dev cluster running (1 nodo, circleguard-dev). ESO instalado con ClusterSecretStore en dev. Infraestructura: clusters dev y prod RUNNING.
+
+### Métricas de negocio por servicio (8/8)
+`auth_tokens_issued_total` · `analytics_queries_total` · `files_uploaded_total` · `surveys_submitted_total` · `qr_validations_total` · `identities_registered_total` · `notifications_sent_total` · `health_status_changes_total`
 
 ---
 

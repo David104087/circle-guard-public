@@ -1,6 +1,8 @@
 package com.circleguard.dashboard.service;
 
 import com.circleguard.dashboard.client.PromotionClient;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -12,11 +14,21 @@ public class AnalyticsService {
     private final JdbcTemplate jdbc;
     private final PromotionClient promotionClient;
     private final KAnonymityFilter kAnonymityFilter;
+    private final MeterRegistry meterRegistry;
+
+    private void recordQuery(String scope) {
+        Counter.builder("analytics_queries_total")
+            .description("Total analytics dashboard queries served")
+            .tag("scope", scope)
+            .register(meterRegistry)
+            .increment();
+    }
 
     /**
      * Gets campus-wide health summary from promotion-service.
      */
     public Map<String, Object> getCampusSummary() {
+        recordQuery("campus");
         return promotionClient.getHealthStats();
     }
 
@@ -24,6 +36,7 @@ public class AnalyticsService {
      * Gets department-filtered health stats with K-Anonymity applied.
      */
     public Map<String, Object> getDepartmentStats(String department) {
+        recordQuery("department");
         Map<String, Object> raw = promotionClient.getHealthStatsByDepartment(department);
         return kAnonymityFilter.apply(raw);
     }

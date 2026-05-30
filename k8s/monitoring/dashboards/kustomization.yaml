@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Packages each per-service Grafana dashboard JSON as a ConfigMap in the
+# `monitoring` namespace. The kube-prometheus-stack Grafana sidecar
+# (sidecar.dashboards.label=grafana_dashboard, labelValue="1") auto-discovers
+# any ConfigMap carrying that label and imports the dashboard at runtime —
+# no Grafana restart required.
+#
+# Apply with:  kubectl apply -k k8s/monitoring/dashboards/
+
+namespace: monitoring
+
+# The sidecar selects on this label/value (see kube-prometheus-values.yaml).
+commonLabels:
+  grafana_dashboard: "1"
+
+generatorOptions:
+  # Keep ConfigMap names stable so re-applying updates in place.
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: cg-dashboard-auth
+    files: [auth-service.json]
+  - name: cg-dashboard-dashboard
+    files: [dashboard-service.json]
+  - name: cg-dashboard-file
+    files: [file-service.json]
+  - name: cg-dashboard-form
+    files: [form-service.json]
+  - name: cg-dashboard-gateway
+    files: [gateway-service.json]
+  - name: cg-dashboard-identity
+    files: [identity-service.json]
+  - name: cg-dashboard-notification
+    files: [notification-service.json]
+  - name: cg-dashboard-promotion
+    files: [promotion-service.json]
