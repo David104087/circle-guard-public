@@ -1,0 +1,50 @@
+/*
+ * CircleGuard — Daily Trivy Vulnerability Scan
+ * Scans all production Docker images and sends report to Slack.
+ * Schedule: daily at 07:00 UTC via Jenkins cron trigger.
+ */
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER = 'davidartunduaga'
+    }
+
+    triggers {
+        cron('0 7 * * *')
+    }
+
+    stages {
+        stage('Scan Images') {
+            steps {
+                withCredentials([string(credentialsId: 'slack-webhook', variable: 'SLACK_URL')]) {
+                    sh '''
+                        FINDINGS=""
+                        for svc in auth dashboard file form gateway identity notification promotion; do
+                            IMAGE="${DOCKER_HUB_USER}/circleguard-${svc}:latest"
+                            echo "Scanning ${IMAGE}..."
+                            RESULT=$(trivy image --severity HIGH,CRITICAL \
+                                --no-progress --timeout 5m \
+                                --format table \
+                                --exit-code 0 \
+                                "${IMAGE}" 2>&1 || true)
+                            COUNT=$(echo "$RESULT" | grep -cE "^circleguard|HIGH|CRITICAL" || echo "0")
+                            FINDINGS="${FINDINGS}\\n*${svc}*: $(echo "$RESULT" | grep -cE 'HIGH|CRITICAL' || echo 0) HIGH/CRITICAL CVEs"
+                            echo "$RESULT" > "trivy-${svc}.txt"
+                        done
+
+                        # Send summary to Slack
+                        curl -s -X POST -H "Content-type: application/json" \
+                            --data "{\"text\":\"*CircleGuard Daily Trivy Scan*\\n${FINDINGS}\\n_Run: ${BUILD_URL}_\"}" \
+                            "$SLACK_URL" || true
+                    '''
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'trivy-*.txt', fingerprint: true
+                }
+            }
+        }
+    }
+}

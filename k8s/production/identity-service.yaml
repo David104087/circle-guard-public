@@ -16,9 +16,21 @@ metadata:
   namespace: circleguard-production
 type: Opaque
 stringData:
-  SPRING_DATASOURCE_PASSWORD: "password"
-  JWT_SECRET: "my-super-secret-dev-key-32-chars-long-12345678"
-  VAULT_SECRET: "746573742d7365637265742d33322d63686172732d6c6f6e672d313233343536"
+  SPRING_DATASOURCE_PASSWORD:
+              valueFrom:
+                secretKeyRef:
+                  name: db-password
+                  key: password
+  JWT_SECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
+  VAULT_SECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: vault-secret
+                  key: secret
   VAULT_SALT: "deadbeef"
   VAULT_HASH_SALT: "12345678"
 ---

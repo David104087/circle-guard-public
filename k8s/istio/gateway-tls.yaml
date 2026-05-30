@@ -1,0 +1,65 @@
+---
+# TLS certificate via cert-manager (Let's Encrypt)
+# Prereq: cert-manager installed + ClusterIssuer "letsencrypt-prod" created
+# Install cert-manager:
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm upgrade --install cert-manager jetstack/cert-manager \
+#     -n cert-manager --create-namespace \
+#     --set installCRDs=true
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: dartunduagapenagos@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - http01:
+          ingress:
+            class: istio
+---
+# Certificate for the CircleGuard domain
+# Replace DOMAIN_PLACEHOLDER with actual domain before applying
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: circleguard-tls
+  namespace: istio-system
+spec:
+  secretName: circleguard-tls-cert
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - circleguard.example.com   # Replace with actual domain
+---
+# Istio Gateway with TLS termination
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: circleguard-gateway-tls
+  namespace: circleguard-dev
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: circleguard-tls-cert
+      hosts:
+        - "circleguard.example.com"
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      tls:
+        httpsRedirect: true
+      hosts:
+        - "circleguard.example.com"

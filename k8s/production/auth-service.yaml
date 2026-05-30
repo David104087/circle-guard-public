@@ -20,10 +20,26 @@ metadata:
   namespace: circleguard-production
 type: Opaque
 stringData:
-  SPRING_DATASOURCE_PASSWORD: "password"
-  SPRING_LDAP_PASSWORD: "admin"
-  JWT_SECRET: "my-super-secret-dev-key-32-chars-long-12345678"
-  QR_SECRET: "my-qr-secret-key-for-dev-1234567890"
+  SPRING_DATASOURCE_PASSWORD:
+              valueFrom:
+                secretKeyRef:
+                  name: db-password
+                  key: password
+  SPRING_LDAP_PASSWORD:
+              valueFrom:
+                secretKeyRef:
+                  name: ldap-credentials
+                  key: password
+  JWT_SECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
+  QR_SECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: qr-secret
+                  key: secret
 ---
 apiVersion: apps/v1
 kind: Deployment
