@@ -1,0 +1,308 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: auth-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: auth-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "jwt-secret"
+        - "qr-secret"
+        - "ldap-credentials"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "auth-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: auth-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: auth-service
+subjects:
+  - kind: ServiceAccount
+    name: auth-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dashboard-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "jwt-secret"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "dashboard-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dashboard-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dashboard-service
+subjects:
+  - kind: ServiceAccount
+    name: dashboard-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: file-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: file-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "jwt-secret"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "file-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: file-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: file-service
+subjects:
+  - kind: ServiceAccount
+    name: file-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: form-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: form-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "jwt-secret"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "form-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: form-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: form-service
+subjects:
+  - kind: ServiceAccount
+    name: form-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gateway-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gateway-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "jwt-secret"
+        - "qr-secret"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "gateway-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gateway-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gateway-service
+subjects:
+  - kind: ServiceAccount
+    name: gateway-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: identity-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: identity-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "jwt-secret"
+        - "vault-secret"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "identity-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: identity-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: identity-service
+subjects:
+  - kind: ServiceAccount
+    name: identity-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: notification-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "mail-credentials"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "notification-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: notification-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: notification-service
+subjects:
+  - kind: ServiceAccount
+    name: notification-service
+    namespace: circleguard-production
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promotion-service
+  namespace: circleguard-production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: promotion-service
+  namespace: circleguard-production
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames:
+        - "db-password"
+        - "jwt-secret"
+        - "neo4j-credentials"
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames:
+      - "promotion-service-config"
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: promotion-service
+  namespace: circleguard-production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: promotion-service
+subjects:
+  - kind: ServiceAccount
+    name: promotion-service
+    namespace: circleguard-production

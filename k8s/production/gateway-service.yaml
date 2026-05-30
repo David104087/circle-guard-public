@@ -16,8 +16,16 @@ metadata:
   namespace: circleguard-production
 type: Opaque
 stringData:
-  JWT_SECRET: "my-super-secret-dev-key-32-chars-long-12345678"
-  QR_SECRET: "my-qr-secret-key-for-dev-1234567890"
+  JWT_SECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
+  QR_SECRET:
+              valueFrom:
+                secretKeyRef:
+                  name: qr-secret
+                  key: secret
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -280,21 +280,21 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 8 — Seguridad (5% of grade) 🔴
+## Phase 8 — Seguridad (5% of grade) 🟢
 
 **Goal:** Secrets management, RBAC, TLS for public services, continuous vuln scanning.
 **Depends on:** Phase 3 (mTLS already done for internal traffic), Phase 4 (Trivy already done)
 
 ### Tasks
 
-- [ ] **8.1 — External Secrets Operator installed.** (Already partially in Phase 5.3.) Verify ESO is running in all 3 envs. ServiceAccounts use Workload Identity to access Secret Manager.
-- [ ] **8.2 — All `Secret` resources sourced from Secret Manager.** No plaintext secrets in `k8s/dev/`, `k8s/stage/`, `k8s/production/`. Replace with `ExternalSecret`.
-- [ ] **8.3 — RBAC manifests per service.** Each microservice has its own ServiceAccount + Role + RoleBinding granting only what it needs (typically: read its own ConfigMap/Secret). In `k8s/<env>/rbac/`.
-- [ ] **8.4 — NetworkPolicy or Istio AuthorizationPolicy.** Default-deny + explicit allows per service-to-service edge that should exist. Document allowed edges in [`docs/operations/network-policies.md`](docs/operations/network-policies.md).
-- [ ] **8.5 — cert-manager installed.** Helm install. ClusterIssuer for Let's Encrypt (HTTP-01 or DNS-01 challenge).
-- [ ] **8.6 — TLS on Istio ingress gateway.** Certificate issued by cert-manager, used by Gateway resource. Public-facing endpoints serve HTTPS.
-- [ ] **8.7 — Continuous vuln scan.** Schedule a daily Jenkins job running `trivy image` against deployed images. Sends report to Slack.
-- [ ] **8.8 — Security review document.** [`docs/operations/security.md`](docs/operations/security.md): threat model summary, mitigations in place, what's not covered.
+- [x] **8.1 — External Secrets Operator installed.** (Already partially in Phase 5.3.) Verify ESO is running in all 3 envs. ServiceAccounts use Workload Identity to access Secret Manager.
+- [x] **8.2 — All `Secret` resources sourced from Secret Manager.** No plaintext secrets in `k8s/dev/`, `k8s/stage/`, `k8s/production/`. Replace with `ExternalSecret`.
+- [x] **8.3 — RBAC manifests per service.** Each microservice has its own ServiceAccount + Role + RoleBinding granting only what it needs (typically: read its own ConfigMap/Secret). In `k8s/<env>/rbac/`.
+- [x] **8.4 — NetworkPolicy or Istio AuthorizationPolicy.** Default-deny + explicit allows per service-to-service edge that should exist. Document allowed edges in [`docs/operations/network-policies.md`](docs/operations/network-policies.md).
+- [x] **8.5 — cert-manager installed.** Helm install. ClusterIssuer for Let's Encrypt (HTTP-01 or DNS-01 challenge).
+- [x] **8.6 — TLS on Istio ingress gateway.** Certificate issued by cert-manager, used by Gateway resource. Public-facing endpoints serve HTTPS.
+- [x] **8.7 — Continuous vuln scan.** Schedule a daily Jenkins job running `trivy image` against deployed images. Sends report to Slack.
+- [x] **8.8 — Security review document.** [`docs/operations/security.md`](docs/operations/security.md): threat model summary, mitigations in place, what's not covered.
 
 **Acceptance criteria:**
 - `grep -rE "password:|secret:" k8s/` returns no plaintext values (only references to `ExternalSecret` or Secret Manager keys).

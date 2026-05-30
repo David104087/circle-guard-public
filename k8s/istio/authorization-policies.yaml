@@ -1,0 +1,106 @@
+---
+# Default deny-all for circleguard-dev namespace
+# All inter-service traffic must be explicitly allowed below
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: circleguard-dev
+spec: {}
+---
+# Allow ingress gateway → all services
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ingress-gateway
+  namespace: circleguard-dev
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+---
+# Allow gateway-service → auth, form, file, dashboard, promotion, notification
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-from-gateway
+  namespace: circleguard-dev
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: auth-service
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/circleguard-dev/sa/gateway-service"
+---
+# Allow auth-service → identity-service (identity lookup)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-auth-to-identity
+  namespace: circleguard-dev
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: identity-service
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/circleguard-dev/sa/auth-service"
+---
+# Allow dashboard-service → promotion-service (analytics reads)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-dashboard-to-promotion
+  namespace: circleguard-dev
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: promotion-service
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/circleguard-dev/sa/dashboard-service"
+---
+# Allow Prometheus scraping from monitoring namespace
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: circleguard-dev
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - "monitoring"
+      to:
+        - operation:
+            paths: ["/actuator/prometheus"]
+            methods: ["GET"]
+---
+# Allow health checks from kube-system (kubelet probes)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-health-probes
+  namespace: circleguard-dev
+spec:
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            paths: ["/actuator/health/*"]
+            methods: ["GET"]
