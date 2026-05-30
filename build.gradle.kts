@@ -67,3 +67,33 @@ subprojects {
         }
     }
 }
+
+// Aggregate JaCoCo report across all subprojects
+tasks.register<JacocoReport>("aggregateCoverageReport") {
+    group = "verification"
+    description = "Generates aggregate JaCoCo coverage report for all services"
+
+    dependsOn(subprojects.map { it.tasks.named("test") })
+
+    val allExecFiles = subprojects.flatMap { proj ->
+        proj.fileTree("${proj.buildDir}/jacoco") { include("*.exec") }.files
+    }
+    executionData.setFrom(allExecFiles)
+
+    val allSourceDirs = subprojects.map { proj ->
+        proj.file("src/main/java")
+    }
+    sourceDirectories.setFrom(allSourceDirs)
+
+    val allClassDirs = subprojects.flatMap { proj ->
+        proj.fileTree("${proj.buildDir}/classes/java/main").files
+    }
+    classDirectories.setFrom(allClassDirs)
+
+    reports {
+        xml.required.set(true)
+        xml.outputLocation.set(file("${buildDir}/reports/jacoco-aggregate/jacocoTestReport.xml"))
+        html.required.set(true)
+        html.outputLocation.set(file("${buildDir}/reports/jacoco-aggregate/html"))
+    }
+}
