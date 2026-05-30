@@ -322,22 +322,22 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 10 — Documentación, Costos y Presentación (10% of grade) 🔴
+## Phase 10 — Documentación, Costos y Presentación (10% of grade) 🟢
 
 **Goal:** Final docs, cost analysis, video demo, presentation.
 **Depends on:** all previous phases
 
 ### Tasks
 
-- [ ] **10.1 — Architecture diagrams.** [`docs/diagrams/`](docs/diagrams/) contains: system-level (services + infra), deployment view (GKE + namespaces), data flow (auth → form → kafka → notification), Istio mesh view. Mermaid preferred.
-- [ ] **10.2 — README.md updated.** Top-level [`README.md`](README.md) explains: what is CircleGuard, how to provision (link to terraform/README), how to deploy (link to k8s docs), how to develop, how to run tests, how to access dashboards.
-- [ ] **10.3 — Operations manual.** [`docs/operations/README.md`](docs/operations/README.md) indexes all operational docs (alerts, rollback, notifications, network policies, etc.).
-- [ ] **10.4 — Cost analysis.** [`docs/operations/costs.md`](docs/operations/costs.md): monthly cost estimate per environment based on actual GCP billing data. Suggestions to lower costs (e.g., shut down stage at night, use preemptible nodes).
-- [ ] **10.5 — Test results analysis.** [`docs/operations/test-results.md`](docs/operations/test-results.md): summary of last successful master pipeline — unit/integration/E2E counts, coverage %, Locust p95/rps, ZAP findings.
-- [ ] **10.6 — Release notes consolidated.** Index of all `RELEASE_NOTES_*.md` files in [`docs/releases/README.md`](docs/releases/README.md).
-- [ ] **10.7 — Video demo script.** [`docs/presentation/video-script.md`](docs/presentation/video-script.md): minute-by-minute script of the 20–30 min demo: architecture → CI/CD demo → app demo → dashboards → performance results → lessons learned.
-- [ ] **10.8 — Final presentation slides.** [`docs/presentation/slides.md`](docs/presentation/slides.md) or a Gamma/Slides link. Same structure as the video.
-- [ ] **10.9 — Lessons learned doc.** [`docs/lessons-learned.md`](docs/lessons-learned.md): what worked, what didn't, what we'd change.
+- [x] **10.1 — Architecture diagrams.** [`docs/diagrams/`](docs/diagrams/) contains: system-level (services + infra), deployment view (GKE + namespaces), data flow (auth → form → kafka → notification), Istio mesh view. Mermaid preferred.
+- [x] **10.2 — README.md updated.** Top-level [`README.md`](README.md) explains: what is CircleGuard, how to provision (link to terraform/README), how to deploy (link to k8s docs), how to develop, how to run tests, how to access dashboards.
+- [x] **10.3 — Operations manual.** [`docs/operations/README.md`](docs/operations/README.md) indexes all operational docs (alerts, rollback, notifications, network policies, etc.).
+- [x] **10.4 — Cost analysis.** [`docs/operations/costs.md`](docs/operations/costs.md): monthly cost estimate per environment based on actual GCP billing data. Suggestions to lower costs (e.g., shut down stage at night, use preemptible nodes).
+- [x] **10.5 — Test results analysis.** [`docs/operations/test-results.md`](docs/operations/test-results.md): summary of last successful master pipeline — unit/integration/E2E counts, coverage %, Locust p95/rps, ZAP findings.
+- [x] **10.6 — Release notes consolidated.** Index of all `RELEASE_NOTES_*.md` files in [`docs/releases/README.md`](docs/releases/README.md).
+- [x] **10.7 — Video demo script.** [`docs/presentation/video-script.md`](docs/presentation/video-script.md): minute-by-minute script of the 20–30 min demo: architecture → CI/CD demo → app demo → dashboards → performance results → lessons learned.
+- [x] **10.8 — Final presentation slides.** [`docs/presentation/slides.md`](docs/presentation/slides.md) or a Gamma/Slides link. Same structure as the video.
+- [x] **10.9 — Lessons learned doc.** [`docs/lessons-learned.md`](docs/lessons-learned.md): what worked, what didn't, what we'd change.
 
 **Acceptance criteria:**
 - A new developer can clone the repo, read README.md, and provision + deploy without asking questions.

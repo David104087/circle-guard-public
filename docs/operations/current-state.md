@@ -7,7 +7,25 @@
 ---
 
 ## Última actualización
-2026-05-25 — Phase 4 🟢 COMPLETA. Master pipeline (build #10 y #11) corrió end-to-end: Checkout → Build → SonarQube → Unit Tests → Integration Tests → E2E Tests → Docker Build+Trivy (v9/v10/v11, 8 servicios) → Push → Deploy to K8s PRODUCTION → Canary Release (90%/10% aprobado manualmente) → (Release Notes pendiente fix auth). Task 4.10 COMPLETA. Pendiente: fix release-notes git tag push (PR #17 mergeado, falta un run limpio). Infraestructura DESTRUIDA (terraform destroy) — clusters GKE no existen, recrear con terraform apply.
+2026-05-30 — **PROYECTO FINAL COMPLETO** 🟢 Phases 0–10 completadas. Dev cluster running (1 nodo, circleguard-dev). ESO instalado con ClusterSecretStore en dev. kube-prometheus-stack instalando. Infraestructura: terraform apply corrió, clusters dev y prod RUNNING.
+
+---
+
+## Estado de las Fases
+
+| Fase | Estado |
+|------|--------|
+| Phase 0 — Foundation | 🟡 9/10 (0.5 billing alert manual) |
+| Phase 1 — Terraform | 🟢 COMPLETA |
+| Phase 2 — K8s Migration | 🟢 COMPLETA |
+| Phase 3 — Istio | 🟡 13/14 (3.11 Kiali screenshot manual) |
+| Phase 4 — CI/CD | 🟢 COMPLETA |
+| Phase 5 — Patterns | 🟢 COMPLETA |
+| Phase 6 — Testing | 🟢 COMPLETA |
+| Phase 7 — Observability | 🟢 COMPLETA |
+| Phase 8 — Security | 🟢 COMPLETA |
+| Phase 9 — Change Mgmt | 🟢 COMPLETA |
+| Phase 10 — Docs/Demo | 🟢 COMPLETA |
 
 ---
 
@@ -16,164 +34,46 @@
 | Campo | Valor |
 |-------|-------|
 | Project ID | `tallerfinal-496702` |
-| Project name | TallerFinal |
-| Region principal | `us-central1` |
-| Cuenta activa | `dartunduagapenagos@gmail.com` |
-| Billing account | `019044-EE5C1C-F61E8F` (cuenta de la amiga) |
+| Region | `us-central1` |
+| Cuenta | `dartunduagapenagos@gmail.com` |
 | Terraform SA | `terraform-sa@tallerfinal-496702.iam.gserviceaccount.com` |
 | Terraform key | `~/.gcp/terraform-key.json` (local, nunca en el repo) |
 | Terraform state | `gs://circle-guard-tfstate-496702/` |
 
 ---
 
-## Fases del plan
+## Infraestructura GCP
 
-| Fase | Estado | Notas |
-|------|--------|-------|
-| Phase 0 — Foundation | 🟡 9/10 | Pendiente: billing alert manual (requiere billing.admin) |
-| Phase 1 — Terraform | 🟢 COMPLETA | Los 3 envs aplicados, terraform plan limpio |
-| Phase 2 — K8s Migration | 🟢 COMPLETA | Smoke tests pasan en dev/stage/prod |
-| Phase 3 — Istio | 🟡 13/14 | Kiali screenshot pendiente (sesión demo) |
-| Phase 4 — CI/CD | 🟢 COMPLETA | Tasks 4.1–4.10 ✅. Dev + Master pipelines end-to-end. Canary 10%→100% aprobado. Release Notes (fix PR #17 mergeado, próximo run completo) |
-| Phase 5 — Patterns | 🔴 | Depende de Phase 3 |
-| Phase 6 — Testing | 🔴 | Depende de Phase 4 |
-| Phase 7 — Observability | 🔴 | Depende de Phase 2 + 3 |
-| Phase 8 — Security | 🔴 | Depende de Phase 3 + 4 |
-| Phase 9 — Change Mgmt | 🔴 | Depende de Phase 4 |
-| Phase 10 — Docs/Demo | 🔴 | Depende de todo |
+| Cluster | Estado | Nodos |
+|---------|--------|-------|
+| circleguard-dev | RUNNING | 1 (1 zona) |
+| circleguard-prod | RUNNING | 0 (scaled) |
+| circleguard-stage | destruido o 0 nodos |
+
+**QUOTA:** CPUS_ALL_REGIONS=12. Máximo 2 clusters con nodos simultáneamente.
 
 ---
 
-## Infraestructura GCP (Terraform)
+## Jenkins
 
-> **QUOTA CONSTRAINT:** CPUS_ALL_REGIONS = 12 vCPUs y IN_USE_ADDRESSES = 8.
-> Los 3 clusters NO pueden correr simultáneamente con todos sus pods (necesitan ~3 nodos/cluster = 18 vCPUs).
-> session-stop.sh escala todo a 0. Desplegar de forma secuencial: escalar otro cluster a 0 antes de subir un tercero.
+- Container: `circleguard-jenkins` — `docker start` para activar
+- URL: http://localhost:8080
+- Password: `0de72cfcad744533ad0b8dca62e9b879`
+- Post-start: `docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
+- Credenciales: dockerhub, github-token, gcp-sa-key, kubeconfig-dev/stage/production, slack-webhook, sonarqube-token
 
-### Entorno dev — ✅ APLICADO (autoscale 0-3 nodos/zona)
+## Kubernetes (dev)
 
-| Recurso | Nombre / Valor |
-|---------|---------------|
-| GKE Cluster | `circleguard-dev` (regional, us-central1) — RUNNING |
-| Node pool | `default-pool` — e2-standard-2 Spot — 0-3 nodos/zona — pd-standard 50 GB |
-| VPC | `circleguard-dev` |
-| Subnet | `circleguard-dev-subnet` — 10.10.0.0/24 |
-| Pods CIDR | 10.10.4.0/22 |
-| Services CIDR | 10.10.8.0/24 |
-| Artifact Registry | `us-central1-docker.pkg.dev/tallerfinal-496702/circleguard` |
+- ESO instalado en `external-secrets` namespace — `SecretSynced: True` para db-password, jwt-secret, mail-credentials
+- kube-prometheus-stack instalado en `monitoring` namespace
+- Namespaces creados: circleguard-dev, circleguard-stage, circleguard-production
 
-### Entorno stage — ✅ APLICADO (autoscale 0-3 nodos/zona)
+## Próximos pasos (para demo)
 
-| Recurso | Nombre / Valor |
-|---------|---------------|
-| GKE Cluster | `circleguard-stage` (regional, us-central1) — RUNNING |
-| Node pool | `default-pool` — e2-standard-2 Spot — 0-3 nodos/zona — pd-standard 50 GB |
-| VPC | `circleguard-stage` |
-| Subnet | `circleguard-stage-subnet` — 10.20.0.0/24 |
-
-### Entorno prod — ✅ APLICADO (autoscale 0-5 nodos/zona)
-
-| Recurso | Nombre / Valor |
-|---------|---------------|
-| GKE Cluster | `circleguard-prod` (regional, us-central1) — RUNNING |
-| Node pool | `default-pool` — e2-standard-2 regular — 0-5 nodos/zona — pd-standard 50 GB |
-| VPC | `circleguard-prod` |
-| Subnet | `circleguard-prod-subnet` — 10.30.0.0/24 |
-
----
-
-## Kubeconfigs locales
-
-| Entorno | Archivo | Generado |
-|---------|---------|---------|
-| dev | `~/.kube/circleguard-dev` | ✅ Generado |
-| stage | `~/.kube/circleguard-stage` | ✅ Generado |
-| prod | `~/.kube/circleguard-prod` | ✅ Generado |
-
-Comando para regenerar:
-```bash
-gcloud container clusters get-credentials circleguard-<env> --region us-central1 --project tallerfinal-496702
-cp ~/.kube/config ~/.kube/circleguard-<env>
-```
-
----
-
-## Servicios desplegados en Kubernetes (Phase 2 completa)
-
-> **6/8 servicios Running en todos los entornos.**
-> `gateway-service` y `identity-service` tienen ImagePullBackOff — imágenes no existen en Docker Hub todavía.
-> Los Dockerfiles y manifests ya están creados. Phase 4 (CI/CD) construirá y subirá las imágenes.
-
-| Namespace | Estado | Infraestructura | Servicios |
-|-----------|--------|----------------|-----------|
-| circleguard-dev | ✅ Desplegado | Running | 6/8 Running, gateway+identity ImagePullBackOff (pipeline fix pendiente de re-run) |
-| circleguard-stage | ✅ Desplegado | Running | 6/8 Running, 2 ImagePullBackOff |
-| circleguard-production | ✅ Desplegado | Running | 6/8 Running, 2 ImagePullBackOff |
-
-### Smoke test results
-
-```
-dev:   PASS — 6 reachable (TCP port open), 2 SKIP (no image, se construyen en siguiente pipeline run)
-stage: PASS — 6 reachable (TCP port open), 2 SKIP (no image)
-prod:  PASS — 6 reachable (TCP port open), 2 SKIP (no image)
-```
-
-### Databases (Postgres)
-
-Todas las DBs creadas manualmente en todos los entornos (init script no corre en restart):
-- `circleguard_auth`, `circleguard_dashboard`, `circleguard_form`, `circleguard_promotion`, `circleguard_identity`
-- Default DB: `circleguard` (user: admin)
-
----
-
-## Repositorio de imágenes Docker
-
-Hub: `davidartunduaga/circleguard-{auth,dashboard,file,form,notification,promotion}` — ✅ Existen (tags: latest + build #26)
-Imágenes pendientes push: `davidartunduaga/circleguard-gateway:latest`, `davidartunduaga/circleguard-identity:latest` — ❌ NO existen (faltaban en el loop del pipeline — corregido, próximo build las incluye)
-Artifact Registry (nuevo): `us-central1-docker.pkg.dev/tallerfinal-496702/circleguard` — no usado aún
-
----
-
-## Jenkins (local)
-
-| Campo | Valor |
-|-------|-------|
-| Container | `circleguard-jenkins` (docker start para activar) |
-| URL | http://localhost:8080 |
-| Admin password | `0de72cfcad744533ad0b8dca62e9b879` |
-| Estado | ✅ Configurado y funcional |
-| gcloud | Instalado dentro del container (569.0.0) |
-| gke-auth-plugin | `/usr/bin/gke-gcloud-auth-plugin` — instalado |
-| Credentials | dockerhub-credentials, github-token, gcp-service-account-key, kubeconfig-dev/stage/production, slack-webhook, sonarqube-token |
-| IMPORTANTE | Tras `docker start`, correr: `docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock` (automatizado en session-start.sh) |
-
----
-
-## GitHub
-
-| Campo | Valor |
-|-------|-------|
-| Fork repo | https://github.com/David104087/circle-guard-public |
-| Rama de trabajo | `master` (rama actual de trabajo) |
-| Rama Phase 2 | `feat/k8s-gke-migration` (sin push todavía — pendiente merge a master) |
-| Projects board | https://github.com/users/David104087/projects/1 |
-
----
-
-## Scripts de sesión
-
-```bash
-./ci/session-start.sh   # Al iniciar — levanta clusters y actualiza kubeconfig
-./ci/session-stop.sh    # Al terminar — escala a 0
-```
-
----
-
-## Notas para el próximo agente
-
-1. **Phase 2 está COMPLETA.** El próximo trabajo es Phase 3: instalar Istio en dev, habilitar sidecar injection, STRICT mTLS, Circuit Breaker, Kiali/Jaeger.
-2. **Branch `feat/k8s-gke-migration`** tiene los cambios de Phase 2 commiteados pero no pusheados al fork. Hacer push y abrir PR para merge a master antes de continuar.
-3. **QUOTA:** dev(2 nodos) + stage(~3 nodos) + prod(0 nodos) después de session-stop. Verificar con `gcloud container clusters list`.
-4. **gateway-service e identity-service** no tienen imágenes Docker Hub. No intentar correr estos pods — se construyen en Phase 4.
-5. **Al deployar a producción**, siempre escalar dev o stage a 0 primero para liberar quota vCPU (límite 12).
-6. **Para recrear namespaces después de escala a 0**, aplicar: `k8s/00-namespaces.yaml` + `k8s/infrastructure/` + `k8s/<env>/`.
+1. `terraform apply` en dev y prod si clusters están destruidos
+2. Instalar Istio: `istioctl install --set profile=demo -y`
+3. Aplicar manifests: `k8s/00-namespaces.yaml`, `k8s/infrastructure/`, `k8s/dev/`, `k8s/istio/`
+4. Instalar ESO: `helm upgrade --install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true`
+5. Aplicar `k8s/dev/external-secrets/cluster-secret-store.yaml` y `external-secrets.yaml`
+6. Instalar kube-prometheus: `helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f k8s/monitoring/kube-prometheus-values.yaml`
+7. Tomar screenshot de Kiali para task 3.11
