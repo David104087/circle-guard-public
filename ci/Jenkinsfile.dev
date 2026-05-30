@@ -144,6 +144,24 @@ pipeline {
             }
         }
 
+        stage('Coverage Report') {
+            steps {
+                sh './gradlew aggregateCoverageReport --no-daemon'
+            }
+            post {
+                always {
+                    jacoco(
+                        execPattern: '**/build/jacoco/*.exec',
+                        classPattern: '**/build/classes/java/main',
+                        sourcePattern: '**/src/main/java',
+                        inclusionPattern: '**/*.class',
+                        changeBuildStatus: true,
+                        minimumLineCoverage: '60'
+                    )
+                }
+            }
+        }
+
         stage('Docker Build, Scan & Push') {
             steps {
                 withCredentials([usernamePassword(

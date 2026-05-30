@@ -228,21 +228,21 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 6 — Testing Enhancement (15% of grade) 🔴
+## Phase 6 — Testing Enhancement (15% of grade) 🟢
 
 **Goal:** Coverage reports, security tests (OWASP ZAP), pipeline integration.
 **Depends on:** Phase 4 (pipeline must accept new stages)
 
 ### Tasks
 
-- [ ] **6.1 — Inventory existing tests from Taller 2.** Already in [`docs/operations/test-inventory.md`](docs/operations/test-inventory.md) (create if missing). Confirm Unit / Integration / E2E / Locust counts.
-- [ ] **6.2 — JaCoCo enabled in every service.** Add `jacoco` plugin in each service's `build.gradle.kts`. Configure `jacocoTestReport` to depend on `test`.
-- [ ] **6.3 — Aggregate coverage report.** Root Gradle task `aggregateCoverageReport` produces a unified HTML+XML report across all services in `build/reports/jacoco-aggregate/`.
-- [ ] **6.4 — Coverage stage in pipeline.** Add stage publishing JaCoCo XML to Jenkins (JaCoCo plugin). Fails if line coverage < 60% (or another agreed threshold — document in [`docs/operations/coverage-policy.md`](docs/operations/coverage-policy.md)).
-- [ ] **6.5 — OWASP ZAP test scripts.** Create [`tests/security/zap-baseline.sh`](tests/security/zap-baseline.sh) — wraps `zaproxy/zap-stable` Docker image to run baseline scan against dev environment public endpoints.
-- [ ] **6.6 — ZAP integrated in pipeline.** Add a `Security Tests` stage in stage Jenkinsfile (post-deploy) that runs ZAP baseline. Publishes report to Jenkins. Non-blocking initially (`|| true`); document graduation criteria in [`docs/operations/security-tests.md`](docs/operations/security-tests.md).
-- [ ] **6.7 — Locust adapted to GKE.** Update `tests/performance/locustfile.py` host references. Add a `Performance Tests` stage in stage pipeline (optional — can be manual).
-- [ ] **6.8 — Test report publishing.** Jenkins shows: JUnit results, JaCoCo coverage trend, SonarQube quality gate, ZAP findings, Locust HTML report (archived).
+- [x] **6.1 — Inventory existing tests from Taller 2.** Already in [`docs/operations/test-inventory.md`](docs/operations/test-inventory.md) (create if missing). Confirm Unit / Integration / E2E / Locust counts.
+- [x] **6.2 — JaCoCo enabled in every service.** Add `jacoco` plugin in each service's `build.gradle.kts`. Configure `jacocoTestReport` to depend on `test`.
+- [x] **6.3 — Aggregate coverage report.** Root Gradle task `aggregateCoverageReport` produces a unified HTML+XML report across all services in `build/reports/jacoco-aggregate/`.
+- [x] **6.4 — Coverage stage in pipeline.** Add stage publishing JaCoCo XML to Jenkins (JaCoCo plugin). Fails if line coverage < 60% (or another agreed threshold — document in [`docs/operations/coverage-policy.md`](docs/operations/coverage-policy.md)).
+- [x] **6.5 — OWASP ZAP test scripts.** Create [`tests/security/zap-baseline.sh`](tests/security/zap-baseline.sh) — wraps `zaproxy/zap-stable` Docker image to run baseline scan against dev environment public endpoints.
+- [x] **6.6 — ZAP integrated in pipeline.** Add a `Security Tests` stage in stage Jenkinsfile (post-deploy) that runs ZAP baseline. Publishes report to Jenkins. Non-blocking initially (`|| true`); document graduation criteria in [`docs/operations/security-tests.md`](docs/operations/security-tests.md).
+- [x] **6.7 — Locust adapted to GKE.** Update `tests/performance/locustfile.py` host references. Add a `Performance Tests` stage in stage pipeline (optional — can be manual).
+- [x] **6.8 — Test report publishing.** Jenkins shows: JUnit results, JaCoCo coverage trend, SonarQube quality gate, ZAP findings, Locust HTML report (archived).
 
 **Acceptance criteria:**
 - Coverage report exists and pipeline publishes it.

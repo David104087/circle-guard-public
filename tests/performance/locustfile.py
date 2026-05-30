@@ -1,10 +1,17 @@
 """
 CircleGuard Performance & Stress Tests - Locust
-Simulates real usage patterns across 6 microservices.
+Simulates real usage patterns across 6 microservices via the Istio Ingress Gateway.
 
-Run:
-  locust -f locustfile.py --host http://localhost:8086 --users 50 --spawn-rate 5 -t 2m
-  locust -f locustfile.py --host http://localhost:8086 --headless --users 100 --spawn-rate 10 -t 5m --html report.html
+GKE Run (via Istio gateway):
+  export GATEWAY_HOST=http://<ISTIO_INGRESS_IP>
+  locust -f locustfile.py --host $GATEWAY_HOST --users 50 --spawn-rate 5 -t 2m
+  locust -f locustfile.py --host $GATEWAY_HOST --headless --users 100 --spawn-rate 10 -t 5m --html report.html
+
+Local Run (direct service ports):
+  locust -f locustfile.py --host http://localhost:8087 --users 50 --spawn-rate 5 -t 2m
+
+Get the GKE gateway IP:
+  kubectl get svc istio-ingressgateway -n istio-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 """
 
 import random
