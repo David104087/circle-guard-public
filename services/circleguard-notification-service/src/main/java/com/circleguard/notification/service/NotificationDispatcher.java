@@ -1,5 +1,7 @@
 package com.circleguard.notification.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,10 +18,11 @@ public class NotificationDispatcher {
     private final SmsService smsService;
     private final PushService pushService;
     private final TemplateService templateService;
+    private final MeterRegistry meterRegistry;
 
     public void dispatch(String userId, String status) {
         log.info("Dispatching contextual multi-channel notifications for user: {} with status: {}", userId, status);
-        
+
         String emailContent = templateService.generateEmailContent(status, userId);
         String pushContent = templateService.generatePushContent(status);
         Map<String, String> pushMetadata = templateService.generatePushMetadata(status);
@@ -33,6 +36,11 @@ public class NotificationDispatcher {
             if (ex != null) {
                 log.error("Error during multi-channel dispatch for user {}: {}", userId, ex.getMessage());
             } else {
+                Counter.builder("notifications_sent_total")
+                    .description("Total notifications dispatched across all channels")
+                    .tag("status", status)
+                    .register(meterRegistry)
+                    .increment();
                 log.info("Multi-channel dispatch completed successfully for user: {}", userId);
             }
             return result;

@@ -251,27 +251,27 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 7 — Observabilidad y Monitoreo (10% of grade) 🔴
+## Phase 7 — Observabilidad y Monitoreo (10% of grade) 🟢
 
 **Goal:** Full observability stack: metrics (Prometheus/Grafana), logs (ELK), traces (Jaeger), alerts, business metrics.
 **Depends on:** Phase 2 (deployed services), Phase 3 (Istio already gives us baseline metrics + traces)
 
 ### Tasks
 
-- [ ] **7.1 — kube-prometheus-stack installed via Helm.** Includes Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics. Installed in `monitoring` namespace per env. Manifests/values in [`k8s/monitoring/`](k8s/monitoring/).
-- [ ] **7.2 — Spring Boot Actuator + Micrometer Prometheus exposed.** Each service exposes `/actuator/prometheus`. ServiceMonitor CRDs in `k8s/monitoring/servicemonitors.yaml`.
-- [ ] **7.3 — Per-service Grafana dashboard.** 8 dashboards (one per service) showing: request rate, error rate, p50/p95/p99 latency, JVM heap, GC pauses. JSON saved to [`k8s/monitoring/dashboards/`](k8s/monitoring/dashboards/).
-- [ ] **7.4 — Istio mesh dashboard.** Import Istio's standard Grafana dashboards (mesh, services, workloads).
-- [ ] **7.5 — Alerting rules.** PrometheusRule CRDs for: pod restart loop, p95 latency > 1s, error rate > 5%, JVM heap > 90%, PVC > 85% full. Document each rule in [`docs/operations/alerts.md`](docs/operations/alerts.md).
-- [ ] **7.6 — Alertmanager wired to Slack/email.** Same channel as pipeline notifications.
-- [ ] **7.7 — ELK Stack installed.** Elasticsearch + Logstash + Kibana via ECK operator or Bitnami Helm chart. In `logging` namespace.
-- [ ] **7.8 — Filebeat or Fluent Bit deployed as DaemonSet.** Ships container logs to Elasticsearch.
-- [ ] **7.9 — Kibana index pattern + saved searches.** Index `circleguard-*`. Saved searches per service. Dashboard for "errors by service in last 1h".
-- [ ] **7.10 — Jaeger / distributed tracing.** Istio already emits spans. Install Jaeger backend (operator or in-memory for dev). Verify traces visible in Jaeger UI.
-- [ ] **7.11 — Trace propagation in services.** Add OpenTelemetry / Sleuth + Brave dependency. Ensure trace IDs propagate across HTTP + Kafka. Verify multi-service traces (form-service → Kafka → notification-service) visible in Jaeger.
-- [ ] **7.12 — Health probes audited.** Every Deployment has `livenessProbe` and `readinessProbe` set. Probes hit `/actuator/health/liveness` and `/actuator/health/readiness`.
-- [ ] **7.13 — Business metrics implemented.** Each service exposes at least 1 business metric via Micrometer (e.g., `surveys_submitted_total`, `files_uploaded_total`, `notifications_sent_total`). Visible in Grafana dashboard.
-- [ ] **7.14 — Observability runbook.** [`docs/operations/observability.md`](docs/operations/observability.md): how to access each tool, where logs vs metrics vs traces live, common queries.
+- [x] **7.1 — kube-prometheus-stack installed via Helm.** Includes Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics. Installed in `monitoring` namespace per env. Manifests/values in [`k8s/monitoring/`](k8s/monitoring/).
+- [x] **7.2 — Spring Boot Actuator + Micrometer Prometheus exposed.** Each service exposes `/actuator/prometheus`. ServiceMonitor CRDs in `k8s/monitoring/servicemonitors.yaml`.
+- [x] **7.3 — Per-service Grafana dashboard.** 8 dashboards (one per service) showing: request rate, error rate, p50/p95/p99 latency, JVM heap, GC pauses. JSON saved to [`k8s/monitoring/dashboards/`](k8s/monitoring/dashboards/).
+- [x] **7.4 — Istio mesh dashboard.** Import Istio's standard Grafana dashboards (mesh, services, workloads).
+- [x] **7.5 — Alerting rules.** PrometheusRule CRDs for: pod restart loop, p95 latency > 1s, error rate > 5%, JVM heap > 90%, PVC > 85% full. Document each rule in [`docs/operations/alerts.md`](docs/operations/alerts.md).
+- [x] **7.6 — Alertmanager wired to Slack/email.** Same channel as pipeline notifications.
+- [x] **7.7 — ELK Stack installed.** Elasticsearch + Logstash + Kibana via ECK operator or Bitnami Helm chart. In `logging` namespace.
+- [x] **7.8 — Filebeat or Fluent Bit deployed as DaemonSet.** Ships container logs to Elasticsearch.
+- [x] **7.9 — Kibana index pattern + saved searches.** Index `circleguard-*`. Saved searches per service. Dashboard for "errors by service in last 1h".
+- [x] **7.10 — Jaeger / distributed tracing.** Istio already emits spans. Install Jaeger backend (operator or in-memory for dev). Verify traces visible in Jaeger UI.
+- [x] **7.11 — Trace propagation in services.** Add OpenTelemetry / Sleuth + Brave dependency. Ensure trace IDs propagate across HTTP + Kafka. Verify multi-service traces (form-service → Kafka → notification-service) visible in Jaeger.
+- [x] **7.12 — Health probes audited.** Every Deployment has `livenessProbe` and `readinessProbe` set. Probes hit `/actuator/health/liveness` and `/actuator/health/readiness`.
+- [x] **7.13 — Business metrics implemented.** Each service exposes at least 1 business metric via Micrometer (e.g., `surveys_submitted_total`, `files_uploaded_total`, `notifications_sent_total`). Visible in Grafana dashboard.
+- [x] **7.14 — Observability runbook.** [`docs/operations/observability.md`](docs/operations/observability.md): how to access each tool, where logs vs metrics vs traces live, common queries.
 
 **Acceptance criteria:**
 - `kubectl get pods -n monitoring` and `-n logging` all Running.
