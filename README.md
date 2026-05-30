@@ -156,3 +156,77 @@ We maintain high system integrity via multi-level testing:
 - **FERPA Compliance**: Student identities are never stored in the contact graph.
 - **Right to be Forgotten**: Users can trigger complete data purging via the Identity Vault.
 - **Temporal Privacy**: All contact edges are automatically purged after 14 days.
+
+---
+
+## Infrastructure & Deployment (Proyecto Final SE5)
+
+> The project has been migrated from DigitalOcean to **Google Cloud Platform (GKE)** with full Terraform automation, Istio service mesh, and a complete CI/CD pipeline.
+
+### Quick Start
+
+**1. Provision infrastructure**
+```bash
+# Requires: gcloud, terraform >= 1.6, kubectl >= 1.28
+cd terraform/envs/dev
+terraform init && terraform apply -auto-approve
+gcloud container clusters get-credentials circleguard-dev --region us-central1 --project tallerfinal-496702
+```
+See [terraform/README.md](terraform/README.md) for full details.
+
+**2. Deploy to Kubernetes**
+```bash
+kubectl apply -f k8s/00-namespaces.yaml
+kubectl apply -f k8s/infrastructure/
+kubectl apply -f k8s/dev/
+kubectl apply -f k8s/dev/external-secrets/  # requires ESO installed
+```
+
+**3. Run pipelines**
+```bash
+# Start Jenkins + SonarQube
+docker start circleguard-jenkins sonarqube
+docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock
+# Trigger dev pipeline via Jenkins UI: http://localhost:8080/job/circleguard-dev/
+```
+
+### Development
+
+```bash
+# Build all services
+./gradlew build -x test
+
+# Run all tests
+./gradlew test
+
+# Coverage report
+./gradlew aggregateCoverageReport
+# HTML: build/reports/jacoco-aggregate/html/index.html
+
+# SonarQube analysis
+./gradlew sonar -Dsonar.host.url=http://localhost:9000 -Dsonar.token=<token>
+```
+
+### Accessing Dashboards
+
+| Tool | Command | URL |
+|------|---------|-----|
+| Grafana | `kubectl port-forward svc/kube-prometheus-grafana -n monitoring 3000:80` | http://localhost:3000 |
+| Prometheus | `kubectl port-forward svc/kube-prometheus-kube-prome-prometheus -n monitoring 9090:9090` | http://localhost:9090 |
+| Jaeger | `kubectl port-forward svc/jaeger-query -n istio-system 16686:16686` | http://localhost:16686 |
+| Kibana | `kubectl port-forward svc/kibana -n logging 5601:5601` | http://localhost:5601 |
+| Kiali | `istioctl dashboard kiali` | Auto-opened |
+| Jenkins | — | http://localhost:8080 |
+
+### Documentation
+
+| Topic | Document |
+|-------|---------|
+| Architecture | [docs/diagrams/architecture.md](docs/diagrams/architecture.md) |
+| Terraform | [terraform/README.md](terraform/README.md) |
+| Operations index | [docs/operations/README.md](docs/operations/README.md) |
+| Observability | [docs/operations/observability.md](docs/operations/observability.md) |
+| Rollback | [docs/operations/rollback.md](docs/operations/rollback.md) |
+| Security | [docs/operations/security.md](docs/operations/security.md) |
+| Design Patterns | [docs/patterns/README.md](docs/patterns/README.md) |
+| Test inventory | [docs/operations/test-inventory.md](docs/operations/test-inventory.md) |
