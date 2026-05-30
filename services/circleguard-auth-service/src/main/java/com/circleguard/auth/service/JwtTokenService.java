@@ -3,6 +3,8 @@ package com.circleguard.auth.service;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -16,11 +18,14 @@ public class JwtTokenService {
 
     private final Key key;
     private final long expiration;
+    private final MeterRegistry meterRegistry;
 
-    public JwtTokenService(@Value("${jwt.secret}") String secret, 
-                         @Value("${jwt.expiration}") long expiration) {
+    public JwtTokenService(@Value("${jwt.secret}") String secret,
+                         @Value("${jwt.expiration}") long expiration,
+                         MeterRegistry meterRegistry) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.expiration = expiration;
+        this.meterRegistry = meterRegistry;
     }
 
     public String generateToken(UUID anonymousId, Authentication auth) {
@@ -28,8 +33,13 @@ public class JwtTokenService {
         List<String> permissions = auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList());
-        
+
         claims.put("permissions", permissions);
+
+        Counter.builder("auth_tokens_issued_total")
+            .description("Total JWT access tokens issued after successful authentication")
+            .register(meterRegistry)
+            .increment();
 
         return Jwts.builder()
                 .setClaims(claims)

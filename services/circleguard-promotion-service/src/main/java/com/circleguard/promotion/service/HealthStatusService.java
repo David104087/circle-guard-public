@@ -2,6 +2,8 @@ package com.circleguard.promotion.service;
 
 import com.circleguard.promotion.exception.FenceException;
 import com.circleguard.promotion.repository.graph.UserNodeRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,6 +27,7 @@ public class HealthStatusService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final com.circleguard.promotion.repository.jpa.SystemSettingsRepository systemSettingsRepository;
     private final com.circleguard.promotion.repository.graph.CircleNodeRepository circleNodeRepository;
+    private final MeterRegistry meterRegistry;
 
     private static final String STATUS_KEY_PREFIX = "user:status:";
     private static final String TOPIC_STATUS_CHANGED = "promotion.status.changed";
@@ -41,6 +44,12 @@ public class HealthStatusService {
     @CacheEvict(cacheNames = "userStatus", allEntries = true)
     public void updateStatus(String anonymousId, String status, boolean adminOverride) {
         log.info("Updating status: {} -> {} (Admin Override: {})", anonymousId, status, adminOverride);
+
+        Counter.builder("health_status_changes_total")
+            .description("Total user health status transitions processed (with contact propagation)")
+            .tag("status", status)
+            .register(meterRegistry)
+            .increment();
 
         if ("ACTIVE".equals(status) && !adminOverride) {
             checkFenceWindow(anonymousId);

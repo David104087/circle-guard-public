@@ -1,6 +1,7 @@
 package com.circleguard.dashboard.service;
 
 import com.circleguard.dashboard.client.PromotionClient;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,7 +34,7 @@ class AnalyticsServiceTest {
     @BeforeEach
     void setUp() {
         kAnonymityFilter = new KAnonymityFilter();
-        service = new AnalyticsService(jdbc, promotionClient, kAnonymityFilter);
+        service = new AnalyticsService(jdbc, promotionClient, kAnonymityFilter, new SimpleMeterRegistry());
     }
 
     @Test

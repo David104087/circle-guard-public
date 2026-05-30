@@ -3,6 +3,7 @@ package com.circleguard.auth.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,7 +25,7 @@ class JwtTokenServiceTest {
 
     @BeforeEach
     void setUp() {
-        jwtService = new JwtTokenService(SECRET, EXPIRATION);
+        jwtService = new JwtTokenService(SECRET, EXPIRATION, new SimpleMeterRegistry());
     }
 
     @Test
