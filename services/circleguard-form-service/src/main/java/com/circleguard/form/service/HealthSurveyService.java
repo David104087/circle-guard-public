@@ -4,6 +4,8 @@ import com.circleguard.form.model.HealthSurvey;
 import com.circleguard.form.model.Questionnaire;
 import com.circleguard.form.model.ValidationStatus;
 import com.circleguard.form.repository.HealthSurveyRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class HealthSurveyService {
     private final QuestionnaireService questionnaireService;
     private final SymptomMapper symptomMapper;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final MeterRegistry meterRegistry;
 
     private static final String TOPIC_SURVEY_SUBMITTED = "survey.submitted";
     private static final String TOPIC_CERTIFICATE_VALIDATED = "certificate.validated";
@@ -42,7 +45,13 @@ public class HealthSurveyService {
         }
         
         HealthSurvey saved = repository.save(survey);
-        
+
+        Counter.builder("surveys_submitted_total")
+            .description("Total health surveys submitted")
+            .tag("has_symptoms", String.valueOf(hasSymptoms))
+            .register(meterRegistry)
+            .increment();
+
         // Emit Event for Promotion Service
         Map<String, Object> event = Map.of(
             "anonymousId", saved.getAnonymousId(),
@@ -50,7 +59,7 @@ public class HealthSurveyService {
             "timestamp", System.currentTimeMillis()
         );
         kafkaTemplate.send(TOPIC_SURVEY_SUBMITTED, saved.getAnonymousId().toString(), event);
-        
+
         return saved;
     }
 

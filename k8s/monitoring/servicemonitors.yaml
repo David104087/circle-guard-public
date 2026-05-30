@@ -1,0 +1,23 @@
+---
+# ServiceMonitor for all CircleGuard microservices
+# Applied after kube-prometheus-stack is installed
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: circleguard-services
+  namespace: monitoring
+  labels:
+    release: kube-prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - circleguard-dev
+  selector:
+    matchExpressions:
+      - key: app
+        operator: Exists
+  endpoints:
+    - path: /actuator/prometheus
+      port: http
+      interval: 30s
+      scrapeTimeout: 10s

@@ -57,10 +57,18 @@ spec:
             - secretRef:
                 name: auth-service-secret
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8180
+            initialDelaySeconds: 45
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
               port: 8180
             initialDelaySeconds: 30
-            periodSeconds: 30
+            periodSeconds: 10
             failureThreshold: 3
           readinessProbe:
             tcpSocket:

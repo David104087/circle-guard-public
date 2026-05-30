@@ -1,0 +1,44 @@
+## Elasticsearch + Kibana Helm values (bitnami/elasticsearch)
+## Install:
+##   helm repo add bitnami https://charts.bitnami.com/bitnami
+##   helm upgrade --install elasticsearch bitnami/elasticsearch \
+##     -n logging --create-namespace -f k8s/logging/elasticsearch-helm-values.yaml
+##   helm upgrade --install kibana bitnami/kibana \
+##     -n logging -f k8s/logging/kibana-helm-values.yaml
+
+master:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  persistence:
+    enabled: true
+    storageClass: standard-rwo
+    size: 8Gi
+
+data:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  persistence:
+    enabled: true
+    storageClass: standard-rwo
+    size: 20Gi
+
+coordinating:
+  replicaCount: 1
+
+security:
+  enabled: false
+
+sysctlImage:
+  enabled: true
