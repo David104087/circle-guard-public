@@ -37,14 +37,12 @@ Kubecost integrates with the existing kube-prometheus-stack (configured in `k8s/
 
 Enables real billing data (not estimates) in Kubecost and custom dashboards.
 
-**Steps (manual — requires Billing Account Admin):**
+**Status: ✅ Active** — both exports enabled on billing account `019044-EE5C1C-F61E8F`.
+Evidence: [`docs/diagrams/finops/costo_uso_estandar.png`](../diagrams/finops/costo_uso_estandar.png) · [`docs/diagrams/finops/costo_uso_detallado.png`](../diagrams/finops/costo_uso_detallado.png)
 
-1. Go to GCP Console → Billing → [Billing Account] → Billing Export
-2. Click "Standard Usage Cost" → Edit Settings
-3. Dataset: `billing_export` in project `tallerfinal-496702`
-4. Click Save
+Dataset: `tallerfinal-496702.billing_export` (region US). First data appears ~24h after activation.
 
-Once exported (~24h for first data), BigQuery dataset `tallerfinal-496702.billing_export` contains line-item costs per resource.
+Once exported, BigQuery dataset `tallerfinal-496702.billing_export` contains line-item costs per resource.
 
 **Useful query to check cluster costs:**
 ```sql

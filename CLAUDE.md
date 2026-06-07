@@ -421,8 +421,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ### Tasks
 
-- [ ] **13.1 — GCP billing export to BigQuery.** Enable billing export in GCP Console → Billing → Export. Dataset: `billing_export` in project `tallerfinal-496702`. Document in [`docs/operations/finops.md`](docs/operations/finops.md).
-<!-- progress: Steps documented in docs/operations/finops.md § 1. Requires manual action in GCP Console by a user with Billing Account Admin role. -->
+- [x] **13.1 — GCP billing export to BigQuery.** Both "Costo de uso estándar" and "Costo de uso detallado" enabled. Dataset: `billing_export` in project `tallerfinal-496702` (region US). Evidence: [`docs/diagrams/finops/costo_uso_estandar.png`](docs/diagrams/finops/costo_uso_estandar.png) and [`docs/diagrams/finops/costo_uso_detallado.png`](docs/diagrams/finops/costo_uso_detallado.png).
 - [ ] **13.2 — Kubecost installed.** `helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace`. Verify UI accessible via `kubectl port-forward`. Shows per-namespace/per-pod cost breakdown.
 <!-- progress: Helm values ready at k8s/monitoring/kubecost-values.yaml. Configured to use existing kube-prometheus-stack. Run helm install when dev cluster is up. -->
 - [x] **13.3 — Grafana cost dashboard.** Add a Grafana dashboard sourcing Kubecost metrics showing: daily cost by namespace, cost by service, cost trend over 7 days. JSON saved to [`k8s/monitoring/dashboards/finops.json`](k8s/monitoring/dashboards/finops.json).
