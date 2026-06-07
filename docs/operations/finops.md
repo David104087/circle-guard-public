@@ -133,13 +133,23 @@ use_spot = true   # already active
 | CPU request | 100m | 100m | unchanged — adequate for idle services |
 | CPU limit | 500m | 500m | unchanged |
 
-### Strategy 4 — Namespace Isolation for Idle Cost Detection
+### Strategy 4 — GCP Budget Alerts
+
+**Tool:** GCP Console → Billing → Presupuestos y alertas
+
+**How it works:** Budget `Alerta250` is configured on billing account `019044-EE5C1C-F61E8F` with monthly budget and alerts at 50% / 90% / 100% thresholds (~$125 / $225 / $250). Alerts are sent to billing account administrators via email automatically.
+
+This closes the FinOps feedback loop: cost optimization policies (scale-to-zero, spot VMs) reduce spend, and the budget alert catches any accidental deviation (e.g., a cluster left running overnight).
+
+**No action required** — alert is already active in GCP Console.
+
+### Strategy 5 — Namespace Isolation for Idle Cost Detection
 
 **How it works:** Each environment has its own namespace (`circleguard-dev`, `circleguard-stage`, `circleguard-production`). Kubecost tracks cost per namespace, making it easy to identify which environment is being actively used and which is idle.
 
 **Policy:** If a namespace shows zero traffic for >2h (visible in Grafana), scale its cluster to 0.
 
-### Strategy 5 — Sequential Cluster Operations (CPUS_ALL_REGIONS quota)
+### Strategy 6 — Sequential Cluster Operations (CPUS_ALL_REGIONS quota)
 
 **How it works:** The GCP project has a `CPUS_ALL_REGIONS=12` quota. Running all 3 clusters simultaneously (18 vCPUs) exceeds this limit. Operating sequentially (one cluster at a time) is enforced by the session scripts.
 
