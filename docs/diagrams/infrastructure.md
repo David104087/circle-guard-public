@@ -1,6 +1,6 @@
 # Infrastructure Diagram
 
-CircleGuard GCP infrastructure across dev, stage, and prod environments.
+CircleGuard infrastructure across GCP (primary) and DigitalOcean (secondary), each with dev, stage, and prod environments.
 
 ## System overview
 
@@ -49,16 +49,48 @@ graph TB
 
     end
 
+    subgraph DO["DigitalOcean (nyc1) — Multi-Cloud Secondary (3 envs)"]
+
+        subgraph DOKS_DEV["DOKS: circleguard-do-dev"]
+            NP_DO_DEV["Node Pool: default-pool\ns-2vcpu-4gb\n0–3 nodes (autoscale)"]
+            subgraph NS_DO_DEV["Namespace: circleguard-do-dev"]
+                SVCS_DO_DEV["8 microservices\n+ Istio sidecar\n+ STRICT mTLS"]
+            end
+        end
+        LB_DO_DEV["DO Load Balancer (dev)"]
+
+        subgraph DOKS_STG["DOKS: circleguard-do-stage"]
+            NP_DO_STG["Node Pool: default-pool\ns-2vcpu-4gb\n0–3 nodes (autoscale)"]
+            NS_DO_STG["Namespace: circleguard-do-stage\n8 microservices"]
+        end
+
+        subgraph DOKS_PRD["DOKS: circleguard-do-prod"]
+            NP_DO_PRD["Node Pool: default-pool\ns-2vcpu-4gb\n0–5 nodes (autoscale)"]
+            subgraph NS_DO_PRD["Namespace: circleguard-do-prod"]
+                SVCS_DO_PRD["8 microservices\n+ Istio sidecar\n+ STRICT mTLS"]
+            end
+        end
+        LB_DO_PRD["DO Load Balancer (prod)"]
+
+    end
+
     Internet --> LB_DEV
     Internet --> LB_PRD
+    Internet --> LB_DO_DEV
+    Internet --> LB_DO_PRD
     LB_DEV --> NS_DEV
     LB_PRD --> NS_PRD
+    LB_DO_DEV --> NS_DO_DEV
+    LB_DO_PRD --> NS_DO_PRD
     NS_DEV --> AR
     NS_STG --> AR
     NS_PRD --> AR
     NS_DEV --> SM
     NS_STG --> SM
     NS_PRD --> SM
+    GCS -.->|"Terraform state\nenvs/do-dev\|do-stage\|do-prod"| DOKS_DEV
+    GCS -.->|"Terraform state\nenvs/do-dev\|do-stage\|do-prod"| DOKS_STG
+    GCS -.->|"Terraform state\nenvs/do-dev\|do-stage\|do-prod"| DOKS_PRD
 ```
 
 ## Terraform state layout
@@ -66,14 +98,17 @@ graph TB
 ```
 gs://circle-guard-tfstate-496702/
   envs/
-    dev/    ← VPC + GKE dev + AR + Secrets dev + IAM dev
-    stage/  ← VPC + GKE stage + Secrets stage + IAM stage
-    prod/   ← VPC + GKE prod + Secrets prod + IAM prod
+    dev/      ← VPC + GKE dev + AR + Secrets dev + IAM dev
+    stage/    ← VPC + GKE stage + Secrets stage + IAM stage
+    prod/     ← VPC + GKE prod + Secrets prod + IAM prod
+    do-dev/   ← DOKS circleguard-do-dev
+    do-stage/ ← DOKS circleguard-do-stage
+    do-prod/  ← DOKS circleguard-do-prod
 ```
 
-## IAM service accounts per environment
+## IAM service accounts per GCP environment
 
-Each env creates the following Google Service Accounts, bound to Kubernetes SAs via Workload Identity:
+Each GCP env creates the following Google Service Accounts, bound to Kubernetes SAs via Workload Identity:
 
 | GCP SA | Purpose |
 |--------|---------|
@@ -86,3 +121,5 @@ Each env creates the following Google Service Accounts, bound to Kubernetes SAs 
 | `cg-eso-<env>` | External Secrets Operator (Secret Manager access) |
 | `cg-jenkins-<env>` | Jenkins deploy SA |
 | `cg-gke-<env-short>` | GKE node pool SA (logging, monitoring, AR pull) |
+
+> DigitalOcean clusters do not use Workload Identity — RBAC and K8s Secrets are used directly. External Secrets Operator on DO clusters can optionally pull from GCP Secret Manager using a service account key stored as a K8s Secret.

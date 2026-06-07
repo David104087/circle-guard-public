@@ -29,7 +29,7 @@
 | Phase 8 — Security | 🟢 COMPLETA |
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
-| Phase 11 — Multi-Cloud (Bonus) | 🔴 No iniciada |
+| Phase 11 — Multi-Cloud (Bonus) | 🟡 En progreso (infra code lista, pendiente apply con DO_TOKEN) |
 | Phase 12 — Chaos Engineering (Bonus) | 🔴 No iniciada |
 | Phase 13 — FinOps (Bonus) | 🟡 Parcial (cost doc exists, tooling needed) |
 
@@ -85,7 +85,19 @@
 6. Instalar kube-prometheus: `helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f k8s/monitoring/kube-prometheus-values.yaml`
 7. Tomar screenshot de Kiali para task 3.11
 
+## DigitalOcean (Multi-Cloud — Phase 11)
+
+Infraestructura como código lista — pendiente ejecución cuando se tenga DO_TOKEN.
+
+| Cluster DO | Estado | Terraform env |
+|------------|--------|---------------|
+| circleguard-do-dev | ⚪ No creado (pendiente DO_TOKEN) | `terraform/envs/do-dev/` |
+| circleguard-do-stage | ⚪ No creado (pendiente DO_TOKEN) | `terraform/envs/do-stage/` |
+| circleguard-do-prod | ⚪ No creado (pendiente DO_TOKEN) | `terraform/envs/do-prod/` |
+
+K8s manifests listos en `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` (namespace + 8 servicios + infraestructura por env).
+
 ### Bonus pendientes (fases 11–13)
-- **Phase 11 — Multi-Cloud:** Decidir segundo cloud (AWS EKS o Azure AKS), crear módulo Terraform, desplegar servicios
+- **Phase 11 — Multi-Cloud:** Infra code lista. Pendiente: DO_TOKEN → `terraform apply` en los 3 envs → deploy K8s → Istio → Jenkins integration
 - **Phase 12 — Chaos Engineering:** Instalar Chaos Mesh en dev, ejecutar 5 experimentos documentados
 - **Phase 13 — FinOps:** Instalar Kubecost, habilitar billing export a BigQuery, crear dashboard Grafana de costos

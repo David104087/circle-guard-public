@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: circleguard-cloud2
-  labels:
-    istio-injection: enabled
-    environment: cloud2
-    provider: digitalocean

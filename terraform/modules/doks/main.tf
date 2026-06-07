@@ -7,14 +7,13 @@ terraform {
   }
 }
 
-data "digitalocean_kubernetes_versions" "available" {
-  version_prefix = "${var.kubernetes_version}."
-}
+data "digitalocean_kubernetes_versions" "available" {}
 
 resource "digitalocean_kubernetes_cluster" "cluster" {
   name    = var.cluster_name
   region  = var.region
   version = data.digitalocean_kubernetes_versions.available.latest_version
+  tags    = concat(["circleguard", var.environment, "provider:digitalocean"], var.tags)
 
   # Control plane is FREE on DOKS — no charge for the master nodes
   node_pool {
@@ -22,13 +21,14 @@ resource "digitalocean_kubernetes_cluster" "cluster" {
     size       = var.node_size
     node_count = var.node_count
 
+    # min_nodes=0 enables scale-to-zero between sessions — same pattern as GKE min_node_count=0
     auto_scale = true
     min_nodes  = var.min_nodes
     max_nodes  = var.max_nodes
 
     labels = {
       cluster     = var.cluster_name
-      environment = "cloud2"
+      environment = var.environment
       provider    = "digitalocean"
     }
   }

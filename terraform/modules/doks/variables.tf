@@ -38,3 +38,27 @@ variable "node_size" {
   description = "Droplet size slug for nodes. s-2vcpu-4gb = ~$18/mo, s-2vcpu-2gb = ~$12/mo"
   default     = "s-2vcpu-4gb"
 }
+
+variable "environment" {
+  type        = string
+  description = "Environment label applied to node pool labels (dev, stage, prod)."
+  default     = "dev"
+}
+
+variable "tags" {
+  type        = list(string)
+  description = "Additional tags to attach to the cluster."
+  default     = []
+}
+
+variable "environment" {
+  type        = string
+  description = "Environment label (dev, stage, prod). Applied to node pool labels."
+  default     = "dev"
+}
+
+variable "tags" {
+  type        = list(string)
+  description = "Additional tags to attach to the cluster"
+  default     = []
+}

@@ -13,8 +13,12 @@ Project and operational context for AI-assisted development on this repository.
 5. **Read the plan before starting any task.** The plan declares dependencies between phases. Do not start tasks in a later phase if blocking tasks in an earlier phase are still `- [ ]`. If you believe a dependency is wrong, leave a note and ask before proceeding.
 6. **Session lifecycle — manage infrastructure manually.**
    - When the user says they are **starting a session**: start Jenkins (`docker start circleguard-jenkins && docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`), start SonarQube (`docker start sonarqube`), and run `terraform apply -auto-approve` in the needed envs (usually just `terraform/envs/dev/`).
-   - When the user says they are **done working**: scale down or destroy GKE clusters to avoid costs. For short breaks: `gcloud container clusters resize <cluster> --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet`. For overnight/long absences: `terraform destroy -auto-approve` in each env. Stop Jenkins and SonarQube: `docker stop circleguard-jenkins sonarqube`.
-   - QUOTA: CPUS_ALL_REGIONS=12 — never run more than 2 clusters simultaneously with nodes. Scale one to 0 before scaling another up.
+   - When the user says they are **done working**: scale down all clusters to avoid costs.
+     - **GCP clusters:** `gcloud container clusters resize <cluster> --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet`
+     - **DO clusters** (once provisioned): `doctl kubernetes cluster node-pool update <cluster-id> <pool-id> --count 0` — or use `terraform apply` with `node_count=0`. Min_nodes is already 0 so autoscaler allows it.
+     - For overnight/long absences: `terraform destroy -auto-approve` in each env. Stop Jenkins and SonarQube: `docker stop circleguard-jenkins sonarqube`.
+   - **GCP QUOTA:** CPUS_ALL_REGIONS=12 — never run more than 2 GCP clusters simultaneously with nodes. Scale one to 0 before scaling another up.
+   - **DO clusters** scale independently from GCP — DO quota is per-account, not shared with GCP.
 7. **Read `docs/operations/current-state.md` at the start of every session.** That file is the live record of what is actually deployed, which clusters exist, and which phases are complete. Update it whenever you deploy, destroy, or change infrastructure. It exists precisely so that context compaction and new agents don't lose track of the real system state.
 8. **Document every error and its fix.** Whenever you encounter a bug, compatibility issue, or unexpected behavior and find the fix, you MUST add it to the `## Known Issues & Lessons Learned` section at the bottom of this file in the same turn. Future agents (and you in a new conversation) must not repeat the same mistake. Format: `### <short title>` + context + root cause + fix.
 9. **Document important decisions and changes.** Whenever you make a significant architectural decision, add a new tool/technology, change a pipeline, modify the Istio config, or do anything that a future agent would need to know to avoid confusion, write it down — either directly in this file (under a new section if needed) or in a `docs/operations/` file that is referenced from here. The goal: context compaction must never cause the loss of critical operational knowledge. Key things to always record: new credentials needed in Jenkins, new shell commands for cluster management, changes to `k8s/` that affect how pipelines run, and any decision that is not obvious from reading the code alone.
@@ -353,31 +357,43 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ## Phase 11 — Multi-Cloud (Bonus 5%) 🟡
 
-**Goal:** Deploy CircleGuard on a second cloud provider alongside GCP, demonstrating cross-cloud redundancy and comparing performance.
+**Goal:** Deploy CircleGuard on DigitalOcean DOKS mirroring the GCP setup: 3 clusters (do-dev, do-stage, do-prod) with same standards, same K8s manifests, same Istio mesh. Demonstrate cross-cloud redundancy and compare performance.
 **Depends on:** Phase 1 (Terraform modules must exist to adapt), Phase 2 (K8s manifests must be cloud-agnostic)
 
-> **Scope constraint:** The second cloud must be one of AWS (EKS) or Azure (AKS). Use existing K8s manifests with minimal changes. Do NOT re-implement CI/CD from scratch — the same Jenkins pipelines deploy to both clouds.
+> **Architecture parity:** DigitalOcean mirrors GCP exactly — 3 environments (dev/stage/prod), same namespace conventions, same Istio config, same K8s manifests (only StorageClass differs: `do-block-storage` instead of `standard-rwo`). The same Jenkins pipelines deploy to both clouds.
+
+### DO Infrastructure layout
+
+| GCP | DigitalOcean | Namespace | Terraform env |
+|-----|-------------|-----------|---------------|
+| `circleguard-dev` | `circleguard-do-dev` | `circleguard-do-dev` | `terraform/envs/do-dev/` |
+| `circleguard-stage` | `circleguard-do-stage` | `circleguard-do-stage` | `terraform/envs/do-stage/` |
+| `circleguard-prod` | `circleguard-do-prod` | `circleguard-do-prod` | `terraform/envs/do-prod/` |
+
+All DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region, `s-2vcpu-4gb` nodes.
 
 ### Tasks
 
 - [x] **11.1 — Choose second cloud + document decision.** DigitalOcean DOKS chosen. Rationale: free control plane, project history (original platform), simple Terraform provider, cheaper nodes than GKE. Documented in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
-- [x] **11.2 — Terraform module for second cloud cluster.** `terraform/modules/doks/` created. Inputs: cluster_name, region, kubernetes_version, node_count, min/max_nodes, node_size. Outputs: cluster_id, endpoint, kube_config.
-- [x] **11.3 — Env `terraform/envs/cloud2/`.** Calls doks module with 2 nodes (s-2vcpu-4gb). GCS backend with prefix `envs/cloud2`. Token via `TF_VAR_do_token` env var.
-- [ ] **11.4 — Apply cloud2 env.** `terraform apply` in `envs/cloud2/` succeeds. Cluster visible in DigitalOcean console.
-<!-- progress: Code ready. Waiting for DO_TOKEN from partner to execute terraform apply. -->
-- [x] **11.5 — Adapt K8s manifests for cloud2.** `k8s/cloud2/` created from `k8s/dev/`. StorageClass: `standard-rwo` → `do-block-storage`. Namespace: `circleguard-cloud2`. Infrastructure manifests also adapted.
-- [ ] **11.6 — Deploy infrastructure to cloud2.** Deploy Postgres, Kafka, Redis, Neo4j to the cloud2 cluster. All pods Running.
-- [ ] **11.7 — Deploy services to cloud2.** Deploy all 8 microservices. Smoke test passes.
-- [ ] **11.8 — Install Istio on cloud2.** Same as Phase 3.1–3.3: install, enable sidecar injection, enforce STRICT mTLS.
-- [ ] **11.9 — Jenkins pipeline deploys to cloud2.** Add `cloud2-kubeconfig` credential in Jenkins. Add optional deploy stage in master Jenkinsfile that deploys to cloud2 after GCP prod.
-- [ ] **11.10 — Cross-cloud load balancing documented.** Document the strategy in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md): options are DNS round-robin, external LB (Cloudflare, AWS Route53), or Istio multi-cluster. Pick the simplest that works; implement if feasible, otherwise document as "would implement with X".
-- [ ] **11.11 — Performance comparison.** Run Locust test against GCP prod and cloud2 endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
-- [ ] **11.12 — Architecture diagram updated.** Add cloud2 to [docs/diagrams/infrastructure.md](docs/diagrams/infrastructure.md) Mermaid diagram.
+- [x] **11.2 — Terraform module `doks` updated.** `terraform/modules/doks/` supports `environment` variable (labels), `tags`, and `min_nodes=0` for scale-to-zero. Same pattern as GKE module.
+- [x] **11.3 — 3 Terraform envs for DO.** `terraform/envs/do-dev/`, `do-stage/`, `do-prod/` — each calls the doks module with appropriate sizing. GCS backend prefixes `envs/do-dev`, `envs/do-stage`, `envs/do-prod`. Token via `TF_VAR_do_token` env var.
+- [ ] **11.4 — Apply all 3 DO envs.** `terraform apply` in each of `envs/do-dev/`, `envs/do-stage/`, `envs/do-prod/` succeeds. All 3 clusters visible in DigitalOcean console.
+<!-- progress: Code ready. Waiting for DO_TOKEN from partner to execute terraform apply. Apply sequentially to avoid API rate limits. -->
+- [x] **11.5 — K8s manifests for all 3 DO environments.** `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` created. StorageClass: `do-block-storage`. Namespaces: `circleguard-do-dev/stage/prod`. All 8 services + infrastructure per env.
+- [ ] **11.6 — Deploy infrastructure to do-dev.** Apply `k8s/do-dev/00-namespace.yaml` and `k8s/do-dev/infrastructure/` to `circleguard-do-dev` cluster. Postgres, Kafka, Redis, Neo4j, Mailhog Running.
+- [ ] **11.7 — Deploy services to do-dev.** Apply `k8s/do-dev/*.yaml` (services). Smoke test passes.
+- [ ] **11.8 — Install Istio on do-dev.** `istioctl install --set profile=demo -y`. Enable sidecar injection on namespace. Enforce STRICT mTLS with PeerAuthentication.
+- [ ] **11.9 — Repeat 11.6–11.8 for do-stage and do-prod.**
+- [ ] **11.10 — Jenkins pipeline deploys to all DO envs.** Add `do-dev-kubeconfig`, `do-stage-kubeconfig`, `do-prod-kubeconfig` credentials in Jenkins. Add optional parallel deploy stages in Jenkinsfiles.
+- [ ] **11.11 — Cross-cloud load balancing documented.** Document the strategy in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md): DNS active-passive (GCP primary, DO hot standby) with future path to Cloudflare active-active.
+- [ ] **11.12 — Performance comparison.** Run Locust test against GCP prod and do-prod endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
+- [ ] **11.13 — Architecture diagram updated.** Add all 3 DO clusters to [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) Mermaid diagram.
 
 **Acceptance criteria:**
-- `kubectl get pods -n circleguard-<env>` shows all services Running on the cloud2 cluster.
-- Locust comparison table exists in `docs/operations/multi-cloud.md` with data from both clouds.
-- Terraform plan is clean for `envs/cloud2/`.
+- `kubectl get pods -n circleguard-do-dev` shows all services Running on the DO dev cluster.
+- `kubectl get peerauthentication -A` shows STRICT mTLS on all 3 DO clusters.
+- Locust comparison table exists in `docs/operations/multi-cloud.md` with data from GCP prod and DO prod.
+- `terraform plan` is clean for all 3 `envs/do-*/` directories.
 
 ---
 
