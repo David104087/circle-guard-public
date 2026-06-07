@@ -21,7 +21,7 @@
 | Phase 0 — Foundation | 🟡 9/10 (0.5 billing alert manual) |
 | Phase 1 — Terraform | 🟢 COMPLETA |
 | Phase 2 — K8s Migration | 🟢 COMPLETA |
-| Phase 3 — Istio | 🟡 13/14 (3.11 Kiali screenshot manual) |
+| Phase 3 — Istio (Bonus) | 🟡 13/14 (3.11 Kiali screenshot manual) |
 | Phase 4 — CI/CD | 🟢 COMPLETA |
 | Phase 5 — Patterns | 🟢 COMPLETA |
 | Phase 6 — Testing | 🟢 COMPLETA |
@@ -29,6 +29,9 @@
 | Phase 8 — Security | 🟢 COMPLETA |
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
+| Phase 11 — Multi-Cloud (Bonus) | 🔴 No iniciada |
+| Phase 12 — Chaos Engineering (Bonus) | 🔴 No iniciada |
+| Phase 13 — FinOps (Bonus) | 🟡 Parcial (cost doc exists, tooling needed) |
 
 ---
 
@@ -71,8 +74,9 @@
 - kube-prometheus-stack instalado en `monitoring` namespace
 - Namespaces creados: circleguard-dev, circleguard-stage, circleguard-production
 
-## Próximos pasos (para demo)
+## Próximos pasos
 
+### Para demo de lo ya implementado
 1. `terraform apply` en dev y prod si clusters están destruidos
 2. Instalar Istio: `istioctl install --set profile=demo -y`
 3. Aplicar manifests: `k8s/00-namespaces.yaml`, `k8s/infrastructure/`, `k8s/dev/`, `k8s/istio/`
@@ -80,3 +84,8 @@
 5. Aplicar `k8s/dev/external-secrets/cluster-secret-store.yaml` y `external-secrets.yaml`
 6. Instalar kube-prometheus: `helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f k8s/monitoring/kube-prometheus-values.yaml`
 7. Tomar screenshot de Kiali para task 3.11
+
+### Bonus pendientes (fases 11–13)
+- **Phase 11 — Multi-Cloud:** Decidir segundo cloud (AWS EKS o Azure AKS), crear módulo Terraform, desplegar servicios
+- **Phase 12 — Chaos Engineering:** Instalar Chaos Mesh en dev, ejecutar 5 experimentos documentados
+- **Phase 13 — FinOps:** Instalar Kubecost, habilitar billing export a BigQuery, crear dashboard Grafana de costos

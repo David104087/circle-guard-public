@@ -30,7 +30,11 @@ Project and operational context for AI-assisted development on this repository.
 **Repo (fork):** https://github.com/David104087/circle-guard-public.git
 **Stack:** Spring Boot 3.2.x · Java 21 · Gradle Kotlin DSL · Docker · Jenkins · Kubernetes (GCP/GKE) · Terraform · Istio
 
-**Bonus selected:** Only **Service Mesh (Istio)**. Multi-Cloud, Chaos Engineering, and FinOps bonuses are explicitly OUT OF SCOPE — do not start work on them.
+**Bonuses in scope:** All four bonuses from `Workshop_statement.md` are now IN SCOPE:
+- ✅ **Service Mesh (Istio)** — already implemented in Phase 3
+- 🔴 **Multi-Cloud** — Phase 11 (see below)
+- 🔴 **Chaos Engineering** — Phase 12 (see below)
+- 🟡 **FinOps** — Phase 13 (see below; cost doc exists, tooling needed)
 
 CircleGuard is a university health-monitoring platform. Eight microservices communicate via Kafka and REST. Six have published Docker Hub images; `gateway-service` and `identity-service` images are built and pushed in Phase 4 CI/CD.
 
@@ -345,14 +349,92 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Out-of-scope (do not work on)
+---
 
-The following bonus tracks from `Workshop_statement.md` are explicitly OUT OF SCOPE for this implementation:
-- ❌ Implementación Multi-Cloud
-- ❌ Chaos Engineering
-- ❌ FinOps
+## Phase 11 — Multi-Cloud (Bonus 5%) 🔴
 
-Service Mesh **is** in scope (see Phase 3).
+**Goal:** Deploy CircleGuard on a second cloud provider alongside GCP, demonstrating cross-cloud redundancy and comparing performance.
+**Depends on:** Phase 1 (Terraform modules must exist to adapt), Phase 2 (K8s manifests must be cloud-agnostic)
+
+> **Scope constraint:** The second cloud must be one of AWS (EKS) or Azure (AKS). Use existing K8s manifests with minimal changes. Do NOT re-implement CI/CD from scratch — the same Jenkins pipelines deploy to both clouds.
+
+### Tasks
+
+- [ ] **11.1 — Choose second cloud + document decision.** Pick AWS EKS or Azure AKS. Document choice and rationale in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md). Consider: free-tier availability, existing tooling familiarity, Terraform provider maturity.
+- [ ] **11.2 — Terraform module for second cloud cluster.** Create `terraform/modules/eks/` (or `aks/`). Inputs: region, node_count, machine_type. Output: cluster endpoint + kubeconfig. Reuse existing VPC-like concepts.
+- [ ] **11.3 — Env `terraform/envs/cloud2/`.** Calls the new module with sizing equivalent to dev (1–2 nodes, 2 vCPU). `backend.tf` uses the same GCS bucket with prefix `envs/cloud2`.
+- [ ] **11.4 — Apply cloud2 env.** `terraform apply` in `envs/cloud2/` succeeds. Cluster visible in cloud2 console.
+- [ ] **11.5 — Adapt K8s manifests for cloud2.** Update StorageClass references and any cloud-specific annotations. Create `k8s/cloud2/` directory mirroring `k8s/dev/` structure.
+- [ ] **11.6 — Deploy infrastructure to cloud2.** Deploy Postgres, Kafka, Redis, Neo4j to the cloud2 cluster. All pods Running.
+- [ ] **11.7 — Deploy services to cloud2.** Deploy all 8 microservices. Smoke test passes.
+- [ ] **11.8 — Install Istio on cloud2.** Same as Phase 3.1–3.3: install, enable sidecar injection, enforce STRICT mTLS.
+- [ ] **11.9 — Jenkins pipeline deploys to cloud2.** Add `cloud2-kubeconfig` credential in Jenkins. Add optional deploy stage in master Jenkinsfile that deploys to cloud2 after GCP prod.
+- [ ] **11.10 — Cross-cloud load balancing documented.** Document the strategy in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md): options are DNS round-robin, external LB (Cloudflare, AWS Route53), or Istio multi-cluster. Pick the simplest that works; implement if feasible, otherwise document as "would implement with X".
+- [ ] **11.11 — Performance comparison.** Run Locust test against GCP prod and cloud2 endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
+- [ ] **11.12 — Architecture diagram updated.** Add cloud2 to [docs/diagrams/infrastructure.md](docs/diagrams/infrastructure.md) Mermaid diagram.
+
+**Acceptance criteria:**
+- `kubectl get pods -n circleguard-<env>` shows all services Running on the cloud2 cluster.
+- Locust comparison table exists in `docs/operations/multi-cloud.md` with data from both clouds.
+- Terraform plan is clean for `envs/cloud2/`.
+
+---
+
+## Phase 12 — Chaos Engineering (Bonus 5%) 🔴
+
+**Goal:** Install a chaos framework, design and execute resilience experiments on the running system, document findings and improvements.
+**Depends on:** Phase 2 (services running), Phase 3 (Istio in place), Phase 7 (observability — need metrics to observe chaos effects)
+
+> **Tool choice:** Chaos Mesh (preferred — native K8s CRDs, good Istio integration, free OSS). Litmus is an acceptable alternative.
+
+### Tasks
+
+- [ ] **12.1 — Install Chaos Mesh in dev.** `helm install chaos-mesh chaos-mesh/chaos-mesh -n chaos-testing --create-namespace`. Verify dashboard and CRDs available.
+- [ ] **12.2 — Chaos experiments designed.** Create [`docs/chaos/experiments.md`](docs/chaos/experiments.md): define at least 5 experiments covering:
+  - Pod failure (kill a service pod)
+  - Network delay (inject latency between services)
+  - Network partition (block traffic between two services)
+  - CPU stress on one service
+  - Kafka broker disruption
+  For each: hypothesis, expected behavior (circuit breaker kicks in / retry succeeds / graceful degradation), success criteria.
+- [ ] **12.3 — Experiment 1: Pod failure.** Apply `PodChaos` CRD to kill `notification-service` pod. Observe: Kubernetes restarts it, Istio retries absorb transient errors. Capture Grafana screenshots. Document results in [`docs/chaos/results.md`](docs/chaos/results.md).
+- [ ] **12.4 — Experiment 2: Network delay.** Apply `NetworkChaos` (100–500ms delay) on `form-service → notification-service` edge. Observe: Istio retry policy, p95 latency spike in Grafana, Jaeger traces showing delay. Document.
+- [ ] **12.5 — Experiment 3: Network partition.** Apply `NetworkChaos` (loss 100%) on `gateway-service → auth-service`. Observe: Circuit Breaker opens (Istio outlierDetection), 503s returned to client. Document.
+- [ ] **12.6 — Experiment 4: CPU stress.** Apply `StressChaos` on `dashboard-service`. Observe: JVM heap pressure, GC pauses in Grafana, service latency degrades. Document.
+- [ ] **12.7 — Experiment 5: Kafka disruption.** Kill Kafka pod. Observe: form-service producer errors, notification-service consumer lag, services recover when Kafka restarts. Document.
+- [ ] **12.8 — Improvements implemented.** Based on experiment results, implement at least 2 improvements (e.g., adjust circuit breaker thresholds, tune retry limits, add Kafka consumer retry config). Document in `docs/chaos/results.md` under "Improvements".
+- [ ] **12.9 — Chaos Engineering runbook.** [`docs/chaos/runbook.md`](docs/chaos/runbook.md): how to run experiments safely (always in dev), how to stop a running experiment, how to interpret results.
+- [ ] **12.10 — Chaos Mesh pipeline integration.** Add optional `Chaos Smoke Test` stage in dev Jenkinsfile that runs a 60-second pod-failure experiment post-deploy and verifies service recovers within 30s.
+
+**Acceptance criteria:**
+- 5 experiments executed, results documented with Grafana/Jaeger evidence.
+- At least 2 improvements committed to the repo as a result of findings.
+- `kubectl get chaos -n circleguard-dev` (or equivalent CRD list) returns resources.
+
+---
+
+## Phase 13 — FinOps (Bonus 5%) 🟡
+
+**Goal:** Implement real cost monitoring, automated savings policies, cost dashboards, and a documented optimization analysis.
+**Depends on:** Phase 1 (Terraform + GCP infra), Phase 7 (Grafana already running)
+
+> **Baseline:** `docs/operations/costs.md` already has a static cost estimate. This phase adds live tooling and automation.
+
+### Tasks
+
+- [ ] **13.1 — GCP billing export to BigQuery.** Enable billing export in GCP Console → Billing → Export. Dataset: `billing_export` in project `tallerfinal-496702`. Document in [`docs/operations/finops.md`](docs/operations/finops.md).
+- [ ] **13.2 — Kubecost installed.** `helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace`. Verify UI accessible via `kubectl port-forward`. Shows per-namespace/per-pod cost breakdown.
+- [ ] **13.3 — Grafana cost dashboard.** Add a Grafana dashboard sourcing Kubecost metrics showing: daily cost by namespace, cost by service, cost trend over 7 days. JSON saved to [`k8s/monitoring/dashboards/finops.json`](k8s/monitoring/dashboards/finops.json).
+- [ ] **13.4 — Scale-to-zero policy automated.** Update `ci/session-stop.sh` to scale all clusters to 0 nodes when invoked. Verify that `terraform/modules/gke/` has `min_node_count = 0` (already done — verify and document).
+- [ ] **13.5 — Preemptible/Spot node pool option.** Add an optional `spot_node_pool` variable to `terraform/modules/gke/`. When `enable_spot = true`, creates a secondary node pool using spot VMs (`preemptible = true` or `spot = true`). Default: false. Document expected savings (typically 60–80% vs on-demand).
+- [ ] **13.6 — Resource requests/limits audited.** Verify all Deployments have `resources.requests` and `resources.limits` set. This enables proper Kubecost attribution and cluster autoscaler decisions. Update any missing manifests.
+- [ ] **13.7 — Cost optimization analysis.** Update [`docs/operations/costs.md`](docs/operations/costs.md) with: actual costs from GCP billing (if billing export has data), Kubecost per-service breakdown, identified waste (oversized requests, idle namespaces), implemented savings, projected monthly savings.
+- [ ] **13.8 — FinOps strategies documented.** [`docs/operations/finops.md`](docs/operations/finops.md): committed use discounts vs on-demand, spot instance strategy, scale-to-zero schedule, namespace cleanup policy, estimated total savings vs baseline.
+
+**Acceptance criteria:**
+- Kubecost UI shows cost breakdown per namespace/service.
+- Grafana has a FinOps dashboard with real data.
+- `docs/operations/finops.md` documents at least 3 implemented savings strategies with estimated impact.
 
 ---
 
