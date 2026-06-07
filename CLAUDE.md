@@ -351,7 +351,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 11 — Multi-Cloud (Bonus 5%) 🔴
+## Phase 11 — Multi-Cloud (Bonus 5%) 🟡
 
 **Goal:** Deploy CircleGuard on a second cloud provider alongside GCP, demonstrating cross-cloud redundancy and comparing performance.
 **Depends on:** Phase 1 (Terraform modules must exist to adapt), Phase 2 (K8s manifests must be cloud-agnostic)
@@ -360,11 +360,12 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ### Tasks
 
-- [ ] **11.1 — Choose second cloud + document decision.** Pick AWS EKS or Azure AKS. Document choice and rationale in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md). Consider: free-tier availability, existing tooling familiarity, Terraform provider maturity.
-- [ ] **11.2 — Terraform module for second cloud cluster.** Create `terraform/modules/eks/` (or `aks/`). Inputs: region, node_count, machine_type. Output: cluster endpoint + kubeconfig. Reuse existing VPC-like concepts.
-- [ ] **11.3 — Env `terraform/envs/cloud2/`.** Calls the new module with sizing equivalent to dev (1–2 nodes, 2 vCPU). `backend.tf` uses the same GCS bucket with prefix `envs/cloud2`.
-- [ ] **11.4 — Apply cloud2 env.** `terraform apply` in `envs/cloud2/` succeeds. Cluster visible in cloud2 console.
-- [ ] **11.5 — Adapt K8s manifests for cloud2.** Update StorageClass references and any cloud-specific annotations. Create `k8s/cloud2/` directory mirroring `k8s/dev/` structure.
+- [x] **11.1 — Choose second cloud + document decision.** DigitalOcean DOKS chosen. Rationale: free control plane, project history (original platform), simple Terraform provider, cheaper nodes than GKE. Documented in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
+- [x] **11.2 — Terraform module for second cloud cluster.** `terraform/modules/doks/` created. Inputs: cluster_name, region, kubernetes_version, node_count, min/max_nodes, node_size. Outputs: cluster_id, endpoint, kube_config.
+- [x] **11.3 — Env `terraform/envs/cloud2/`.** Calls doks module with 2 nodes (s-2vcpu-4gb). GCS backend with prefix `envs/cloud2`. Token via `TF_VAR_do_token` env var.
+- [ ] **11.4 — Apply cloud2 env.** `terraform apply` in `envs/cloud2/` succeeds. Cluster visible in DigitalOcean console.
+<!-- progress: Code ready. Waiting for DO_TOKEN from partner to execute terraform apply. -->
+- [x] **11.5 — Adapt K8s manifests for cloud2.** `k8s/cloud2/` created from `k8s/dev/`. StorageClass: `standard-rwo` → `do-block-storage`. Namespace: `circleguard-cloud2`. Infrastructure manifests also adapted.
 - [ ] **11.6 — Deploy infrastructure to cloud2.** Deploy Postgres, Kafka, Redis, Neo4j to the cloud2 cluster. All pods Running.
 - [ ] **11.7 — Deploy services to cloud2.** Deploy all 8 microservices. Smoke test passes.
 - [ ] **11.8 — Install Istio on cloud2.** Same as Phase 3.1–3.3: install, enable sidecar injection, enforce STRICT mTLS.
