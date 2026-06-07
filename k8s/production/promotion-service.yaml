@@ -75,7 +75,7 @@ spec:
                 name: promotion-service-secret
           resources:
             requests:
-              memory: "64Mi"
+              memory: "256Mi"
               cpu: "50m"
             limits:
               memory: "1Gi"

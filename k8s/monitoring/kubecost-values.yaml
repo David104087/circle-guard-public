@@ -1,0 +1,38 @@
+# Kubecost Helm values for CircleGuard
+# Install: helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace -f k8s/monitoring/kubecost-values.yaml
+# Access UI: kubectl port-forward -n kubecost svc/kubecost-cost-analyzer 9090:9090
+
+global:
+  prometheus:
+    # Use the existing kube-prometheus-stack Prometheus instead of installing a new one
+    fqdn: http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090
+    enabled: false  # don't install Kubecost's own Prometheus
+
+  grafana:
+    # Use the existing Grafana from kube-prometheus-stack
+    fqdn: http://kube-prometheus-grafana.monitoring.svc.cluster.local
+    enabled: false  # don't install Kubecost's own Grafana
+    proxy: false
+
+# Kubecost Cost Analyzer
+costAnalyzer:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# GCP billing integration (requires billing export to BigQuery — see docs/operations/finops.md)
+kubecostProductConfigs:
+  cloudIntegrationSecret: ""   # set after billing export is configured
+  currencyCode: "USD"
+  clusterName: "circleguard-dev"
+
+# Disable unused components to save resources
+networkCosts:
+  enabled: false   # requires DaemonSet with host networking — skip for cost
+
+kubecostDeployment:
+  replicaCount: 1

@@ -31,7 +31,7 @@
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
 | Phase 11 — Multi-Cloud (Bonus) | 🔴 No iniciada |
 | Phase 12 — Chaos Engineering (Bonus) | 🔴 No iniciada |
-| Phase 13 — FinOps (Bonus) | 🟡 Parcial (cost doc exists, tooling needed) |
+| Phase 13 — FinOps (Bonus) | 🟡 6/8 (13.1 manual GCP; 13.2 helm install pending cluster) |
 
 ---
 

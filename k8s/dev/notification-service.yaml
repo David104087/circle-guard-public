@@ -55,7 +55,7 @@ spec:
                 name: notification-service-config
           resources:
             requests:
-              memory: "64Mi"
+              memory: "256Mi"
               cpu: "100m"
             limits:
               memory: "512Mi"

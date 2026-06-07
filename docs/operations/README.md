@@ -11,6 +11,7 @@ All operational documentation for running and maintaining CircleGuard.
 | [current-state.md](current-state.md) | **Start here** — live system state, cluster status, phase completion |
 | [k8s-migration.md](k8s-migration.md) | GKE migration from DigitalOcean — decisions and manifest changes |
 | [costs.md](costs.md) | Monthly GCP cost estimates per environment |
+| [finops.md](finops.md) | FinOps strategy — Kubecost, savings policies, cost attribution |
 
 ## CI/CD & Releases
 
