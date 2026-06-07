@@ -47,11 +47,21 @@
 
 ## Infraestructura GCP
 
+**2026-05-31 — TODO APAGADO (fin de sesión).** Costo en GCP ≈ $0.
+
 | Cluster | Estado | Nodos |
 |---------|--------|-------|
-| circleguard-dev | RUNNING | 1 (1 zona) |
-| circleguard-prod | RUNNING | 0 (scaled) |
-| circleguard-stage | destruido o 0 nodos |
+| circleguard-dev | DESTRUIDO (`terraform destroy -target=module.gke`) | 0 |
+| circleguard-prod | DESTRUIDO (`gcloud container clusters delete`) | 0 |
+| circleguard-stage | no existe | 0 |
+
+- **0 clusters, 0 VMs, 0 discos persistentes, 0 IPs, 0 load balancers.** Los 19 PVCs huérfanos (~110 GB pd-balanced) se borraron a mano con `gcloud compute disks delete`.
+- Jenkins y SonarQube (Docker) **detenidos**.
+- **Se conservan (costo ~$0):** VPCs dev/prod, Artifact Registry `circleguard` (con imágenes), Secret Manager (`cg-*`), bucket de estado `circle-guard-tfstate-496702`.
+
+**Pendientes de estado Terraform para la próxima sesión:**
+- prod: el cluster se borró con gcloud, así que sigue en el state. En el próximo `terraform apply` Terraform lo recrea (o `terraform state rm module.gke.google_container_cluster.cluster` para limpiar).
+- dev: el destroy dejó IAM bindings del node SA en el state (no se pudieron borrar por permisos — ver Known Issues). No afecta costo.
 
 **QUOTA:** CPUS_ALL_REGIONS=12. Máximo 2 clusters con nodos simultáneamente.
 

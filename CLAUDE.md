@@ -707,3 +707,29 @@ Then apply/resize the target cluster. All envs use `min_node_count = 0` so the a
 **Context:** `circleguard-production` namespace, `dashboard-service` and other services using PostgreSQL.
 **Root cause:** When pods are rescheduled (e.g. after node scale-up), there is a window where the Istio sidecar proxy (Envoy) is not yet ready to intercept traffic. If the app container starts connecting to the database during this window, DNS resolution through the mesh fails with `UnknownHostException`. The pod crashes, enters CrashLoopBackOff, and the exponential backoff keeps it restarting faster than the sidecar can initialize.
 **Fix:** Delete the pod manually — `kubectl delete pod -n circleguard-production -l app=<service>` — so it gets a clean restart where the sidecar initializes before the app connects. Long-term fix: add annotation `proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'` to deployments that connect to databases at startup.
+
+### `terraform destroy` fails on project IAM bindings (403 Policy update access denied)
+
+**Context:** `terraform destroy -target=module.gke` in `terraform/envs/dev/`, end-of-session shutdown.
+**Root cause:** The `gke` module creates project-level IAM bindings for the node ServiceAccount (`roles/monitoring.metricWriter`, `roles/logging.logWriter`, `roles/artifactregistry.reader`). `terraform-sa` has `roles/editor` + `roles/iam.serviceAccountAdmin` but **NOT** `resourcemanager.projects.setIamPolicy`. So destroy removes the cluster + node pool successfully but errors (403) when deleting those IAM members, leaving them in state.
+**Impact:** None on cost — the cluster (the only billable part) IS destroyed. The leftover IAM members are harmless role grants.
+**Fix / workaround:** For a cost shutdown the cluster deletion succeeding is enough. To shut a cluster down fast and reliably regardless of IAM perms, delete it with owner creds via `gcloud`: `gcloud container clusters delete <name> --region=us-central1 --project=tallerfinal-496702 --quiet` (then `terraform state rm module.gke.google_container_cluster.cluster` to keep state clean). To actually delete the IAM bindings, run destroy as an account with `roles/resourcemanager.projectIamAdmin`.
+
+### Orphaned PVC persistent disks survive cluster deletion (residual cost)
+
+**Context:** End-of-session shutdown after deleting both GKE clusters.
+**Root cause:** Dynamically-provisioned PVs (Postgres, Kafka, Neo4j, Redis, Elasticsearch, Prometheus…) are backed by GCE persistent disks. When a cluster is deleted out from under them, the disks are **not** garbage-collected — they linger as orphaned `pvc-*` disks (~110 GB pd-balanced ≈ $11/month).
+**Fix:** After deleting clusters, delete orphaned disks one-by-one with their zone (passing multiple names in a single `gcloud compute disks delete` call fails the `\S{1,66}` regex):
+```bash
+gcloud compute disks list --project=tallerfinal-496702 --format="csv[no-heading](name,zone)" | \
+  while IFS=, read -r NAME ZONE; do
+    gcloud compute disks delete "$NAME" --zone="$(basename "$ZONE")" --project=tallerfinal-496702 --quiet
+  done
+```
+Data is test data recreated on redeploy, so deleting is safe for cost cleanup.
+
+### Stale Terraform state lock blocks destroy/apply
+
+**Context:** `terraform destroy` in `terraform/envs/prod/` — `Error acquiring the state lock ... conditionNotMet`.
+**Root cause:** A previous `terraform apply` (days earlier) crashed/was killed without releasing its GCS state lock (`gs://circle-guard-tfstate-496702/envs/prod/default.tflock`). The lock persisted and blocked all subsequent state operations.
+**Fix:** Release it with the Lock ID from the error message: `terraform -chdir=terraform/envs/prod force-unlock -force <LOCK_ID>`. Only do this when no other terraform process is actually running against that state.
