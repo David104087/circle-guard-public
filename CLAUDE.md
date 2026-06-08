@@ -370,7 +370,10 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 | `circleguard-stage` | `circleguard-do-stage` | `circleguard-do-stage` | `terraform/envs/do-stage/` |
 | `circleguard-prod` | `circleguard-do-prod` | `circleguard-do-prod` | `terraform/envs/do-prod/` |
 
-All DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region, `s-2vcpu-4gb` nodes.
+DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
+- **do-dev:** `s-4vcpu-8gb` (8GB required — 4GB insuficiente para 8 JVM services + infra)
+- **do-stage / do-prod:** `s-2vcpu-4gb` (escalan a 0 entre sesiones, no corren todos los servicios simultáneamente)
+- **Límite de cuenta:** 3 droplets totales → `max_nodes=1` en los 3 envs.
 
 ### Tasks
 

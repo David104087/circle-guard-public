@@ -7,10 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-08 — **Phase 11 Multi-Cloud en progreso.** DO dev cluster recreado con s-4vcpu-8gb (8GB RAM). Manifests DO actualizados con JAVA_TOOL_OPTIONS y Recreate strategy. Liveness probes pendientes de fix (crash a los 300s exactos por probe HTTP fallando). GCP clusters: todos a 0 nodos. DO clusters: destruidos al final de sesión.
-
-### Métricas de negocio por servicio (8/8)
-`auth_tokens_issued_total` · `analytics_queries_total` · `files_uploaded_total` · `surveys_submitted_total` · `qr_validations_total` · `identities_registered_total` · `notifications_sent_total` · `health_status_changes_total`
+2026-06-08 — **Phase 11 Multi-Cloud en progreso.** Tasks 11.1–11.5 completas (código listo). Tasks 11.6–11.13 pendientes. Todos los clusters DO destruidos al cierre. GCP a 0 nodos. El ÚNICO desbloqueador para la próxima sesión es el fix de liveness probes (ver sección "Problema crítico pendiente").
 
 ---
 
@@ -18,10 +15,10 @@
 
 | Fase | Estado |
 |------|--------|
-| Phase 0 — Foundation | 🟡 9/10 (0.5 billing alert manual) |
+| Phase 0 — Foundation | 🟡 9/10 |
 | Phase 1 — Terraform | 🟢 COMPLETA |
 | Phase 2 — K8s Migration | 🟢 COMPLETA |
-| Phase 3 — Istio (Bonus) | 🟡 13/14 (3.11 Kiali screenshot manual) |
+| Phase 3 — Istio (Bonus) | 🟡 13/14 (screenshot Kiali pendiente) |
 | Phase 4 — CI/CD | 🟢 COMPLETA |
 | Phase 5 — Patterns | 🟢 COMPLETA |
 | Phase 6 — Testing | 🟢 COMPLETA |
@@ -29,79 +26,28 @@
 | Phase 8 — Security | 🟢 COMPLETA |
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
-| Phase 11 — Multi-Cloud (Bonus) | 🟡 En progreso — tasks 11.1–11.5 ✅, 11.6–11.13 pendientes |
-| Phase 12 — Chaos Engineering (Bonus) | 🔴 No iniciada |
-| Phase 13 — FinOps (Bonus) | 🟡 Parcial (cost doc exists, tooling needed) |
+| Phase 11 — Multi-Cloud (Bonus) | 🟡 5/13 tareas ✅ |
+| Phase 12 — Chaos Engineering | 🔴 No iniciada |
+| Phase 13 — FinOps | 🟡 Parcial |
 
 ---
 
-## Identidad GCP
+## ⚠️ PROBLEMA CRÍTICO PENDIENTE (leer antes de empezar)
 
-| Campo | Valor |
-|-------|-------|
-| Project ID | `tallerfinal-496702` |
-| Region | `us-central1` |
-| Cuenta | `dartunduagapenagos@gmail.com` |
-| Terraform SA | `terraform-sa@tallerfinal-496702.iam.gserviceaccount.com` |
-| Terraform key | `~/.gcp/terraform-key.json` (local, nunca en el repo) |
-| Terraform state | `gs://circle-guard-tfstate-496702/` |
+**Síntoma:** Todos los pods de servicios Spring Boot en DO crashean a exactamente 300 segundos después de arrancar, aunque el servicio está funcionando.
 
----
+**Causa raíz confirmada:** El liveness probe usa `httpGet /actuator/health/liveness`. Spring Boot solo expone ese endpoint separado cuando `MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED=true` está configurado. Sin esa config, el endpoint retorna 404 → K8s falla 3 veces (default failureThreshold=3) → envía SIGTERM → el servicio hace graceful shutdown. Parece un crash pero es K8s matando el pod.
 
-## Infraestructura GCP
-
-| Cluster | Estado | Nodos |
-|---------|--------|-------|
-| circleguard-dev | 0 nodos (scaled down) | 0 |
-| circleguard-prod | 0 nodos (scaled down) | 0 |
-| circleguard-stage | destruido | — |
-
-**QUOTA:** CPUS_ALL_REGIONS=12. Máximo 2 clusters con nodos simultáneamente.
-
----
-
-## Jenkins
-
-- Container: `circleguard-jenkins` — `docker start` para activar
-- URL: http://localhost:8080
-- Password: `0de72cfcad744533ad0b8dca62e9b879`
-- Post-start: `docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
-- Credenciales: dockerhub, github-token, gcp-sa-key, kubeconfig-dev/stage/production, slack-webhook, sonarqube-token
-
-## Kubernetes (GCP dev)
-
-- ESO instalado en `external-secrets` namespace — `SecretSynced: True` para db-password, jwt-secret, mail-credentials
-- kube-prometheus-stack instalado en `monitoring` namespace
-- Namespaces creados: circleguard-dev, circleguard-stage, circleguard-production
-
-## DigitalOcean (Multi-Cloud — Phase 11)
-
-**Estado al cierre de sesión 2026-06-08:** Clusters destruidos para evitar costos.
-
-| Cluster DO | Estado | Terraform env | Nodo size |
-|------------|--------|---------------|-----------|
-| circleguard-do-dev | DESTRUIDO (recrear próxima sesión) | `terraform/envs/do-dev/` | s-4vcpu-8gb |
-| circleguard-do-stage | DESTRUIDO | `terraform/envs/do-stage/` | s-2vcpu-4gb |
-| circleguard-do-prod | DESTRUIDO | `terraform/envs/do-prod/` | s-2vcpu-4gb |
-
-### Configuración DO actual (post esta sesión)
-- **do-dev:** `node_size = "s-4vcpu-8gb"`, `node_count=1`, `max_nodes=1` — necesita 8GB para correr 8 JVM services + infra
-- **do-stage/prod:** `node_size = "s-2vcpu-4gb"`, `node_count=1`, `max_nodes=1`
-- **Límite de cuenta:** 3 droplets totales → max_nodes=1 por cluster
-- **Kubeconfigs:** `~/.kube/circleguard-do-dev/stage/prod` — expiran ~1h, refrescar con `terraform output -raw kube_config`
-
-### Manifests DO actualizados (k8s/do-dev/)
-- Todos los servicios tienen `JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m"`
-- Todos los servicios tienen `strategy: type: Recreate`
-- JWT secrets corregidos: ≥43 chars (344 bits) en auth/gateway/identity/promotion
-- **PENDIENTE FIX:** liveness probes deben cambiar a `tcpSocket` (HTTP probe falla por actuator config)
-
----
-
-## Próximos pasos — Phase 11 (próxima sesión)
-
-### PRIMERO — Fix liveness probes en k8s/do-dev/ (desbloqueador)
-Cambiar en todos los 8 services el liveness probe de `httpGet /actuator/health/liveness` a:
+**Fix en los manifests `k8s/do-dev/` (DEBE hacerse ANTES de cualquier deploy):**
+Cambiar en los 8 archivos `k8s/do-dev/*.yaml` el liveness probe de:
+```yaml
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: <PORT>
+  initialDelaySeconds: 300
+```
+A:
 ```yaml
 livenessProbe:
   tcpSocket:
@@ -117,32 +63,149 @@ readinessProbe:
   periodSeconds: 15
   failureThreshold: 5
 ```
+**Nota:** `/actuator/health` (sin `/liveness`) sí existe siempre. La readiness probe puede usar ese endpoint. La liveness con tcpSocket solo verifica que el puerto esté abierto.
 
-### Secuencia de deploy (do-dev)
+Servicios y puertos:
+| Servicio | Puerto |
+|---------|--------|
+| auth-service | 8180 |
+| dashboard-service | 8084 |
+| file-service | 8085 |
+| form-service | 8086 |
+| gateway-service | 8087 |
+| identity-service | 8083 |
+| notification-service | 8082 |
+| promotion-service | 8088 |
+
+---
+
+## Infraestructura GCP (estado actual)
+
+| Cluster | Estado |
+|---------|--------|
+| circleguard-dev | 0 nodos (escalado) |
+| circleguard-prod | 0 nodos (escalado) |
+| circleguard-stage | destruido |
+
+Para escalar dev a 1 nodo: `gcloud container clusters resize circleguard-dev --node-pool=default-pool --num-nodes=1 --region=us-central1 --project=tallerfinal-496702 --quiet`
+
+---
+
+## Infraestructura DO (estado actual: TODO DESTRUIDO)
+
+| Cluster | Estado | Terraform env | Node size |
+|---------|--------|---------------|-----------|
+| circleguard-do-dev | DESTRUIDO | `terraform/envs/do-dev/` | **s-4vcpu-8gb** ← importante |
+| circleguard-do-stage | DESTRUIDO | `terraform/envs/do-stage/` | s-2vcpu-4gb |
+| circleguard-do-prod | DESTRUIDO | `terraform/envs/do-prod/` | s-2vcpu-4gb |
+
+**Límite de cuenta DO:** 3 droplets totales → max_nodes=1 en los 3 envs (ya configurado).
+**Kubeconfigs DO:** expiran ~1h. Siempre refrescar con `terraform output -raw kube_config > ~/.kube/circleguard-do-<env>`.
+
+---
+
+## Playbook completo para la próxima sesión (Phase 11)
+
+### Paso 0 — Fix liveness probes (10 min, OBLIGATORIO PRIMERO)
+
+Editar los 8 archivos en `k8s/do-dev/` reemplazando los liveness/readiness probes como se describe en la sección anterior. Luego hacer commit en la rama `feat/multi-cloud-bonus`.
+
+### Paso 1 — Levantar do-dev (15 min)
+
 ```bash
 export TF_VAR_do_token="dop_v1_..."
-cd terraform/envs/do-dev && terraform apply -auto-approve
+cd terraform/envs/do-dev
+terraform apply -auto-approve
 terraform output -raw kube_config > ~/.kube/circleguard-do-dev
 export KUBECONFIG=~/.kube/circleguard-do-dev
+kubectl get nodes  # verificar 1 nodo Ready
+```
+
+### Paso 2 — Deploy infraestructura do-dev (5 min)
+
+```bash
 kubectl apply -f k8s/do-dev/00-namespace.yaml
 kubectl apply -f k8s/do-dev/infrastructure/
-# Esperar postgres-0 Running (~2min)
-kubectl exec postgres-0 -n circleguard-do-dev -- psql -U admin -l  # verificar DBs
-kubectl apply -f k8s/do-dev/
-# Esperar todos 1/1 Running (~5min)
+# Esperar ~3 min
+kubectl get pods -n circleguard-do-dev
+# postgres-0, kafka, zookeeper, redis, neo4j, mailhog deben estar 1/1 Running
 ```
 
-### Istio en do-dev
+### Paso 3 — Verificar bases de datos Postgres (2 min)
+
 ```bash
-istioctl install --set profile=demo -y --kubeconfig ~/.kube/circleguard-do-dev
-kubectl label namespace circleguard-do-dev istio-injection=enabled --kubeconfig ~/.kube/circleguard-do-dev
-kubectl apply -f k8s/istio/peer-authentication.yaml --kubeconfig ~/.kube/circleguard-do-dev
-kubectl rollout restart deployment -n circleguard-do-dev --kubeconfig ~/.kube/circleguard-do-dev
+kubectl exec postgres-0 -n circleguard-do-dev -- psql -U admin -l
+# Deben aparecer: circleguard_auth, circleguard_dashboard, circleguard_form,
+# circleguard_promotion, circleguard_identity
+# Si NO aparecen (cluster fresco con PVC nueva puede que sí corran los init scripts):
+for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
+  kubectl exec postgres-0 -n circleguard-do-dev -- psql -U admin -d circleguard -c "CREATE DATABASE $db;" 2>/dev/null || true
+done
 ```
 
-### Para demo de GCP (si se necesita)
-1. `terraform apply` en dev y prod si clusters están destruidos
-2. Instalar Istio: `istioctl install --set profile=demo -y`
-3. Aplicar manifests: `k8s/00-namespaces.yaml`, `k8s/infrastructure/`, `k8s/dev/`, `k8s/istio/`
-4. Instalar ESO, kube-prometheus-stack
-5. Tomar screenshot de Kiali para task 3.11
+### Paso 4 — Deploy servicios do-dev (5 min + espera)
+
+```bash
+kubectl apply -f k8s/do-dev/
+# Esperar ~5 min (Spring Boot arranca en ~45s con 8GB nodo + JAVA_TOOL_OPTIONS)
+watch kubectl get pods -n circleguard-do-dev
+# Todos deben llegar a 1/1 Running
+```
+
+### Paso 5 — Smoke test do-dev (2 min)
+
+```bash
+kubectl run --rm -it tester --image=curlimages/curl --restart=Never -n circleguard-do-dev -- \
+  sh -c "for svc in auth-service:8180 gateway-service:8087 identity-service:8083 dashboard-service:8084; do echo -n \$svc:; curl -s http://\$svc/actuator/health | head -c 30; echo; done"
+# ✅ Task 11.6 y 11.7 completas
+```
+
+### Paso 6 — Instalar Istio en do-dev (10 min)
+
+```bash
+istioctl install --set profile=demo -y
+kubectl label namespace circleguard-do-dev istio-injection=enabled
+kubectl apply -f k8s/istio/peer-authentication.yaml
+# (peer-authentication.yaml usa namespace circleguard-dev — crear versión do-dev o parcharlo)
+kubectl rollout restart deployment -n circleguard-do-dev
+kubectl get pods -n circleguard-do-dev  # deben mostrar 2/2 (app + envoy sidecar)
+kubectl get peerauthentication -n circleguard-do-dev  # debe mostrar STRICT
+# ✅ Task 11.8 completa
+```
+
+**Nota sobre peer-authentication:** El archivo `k8s/istio/peer-authentication.yaml` puede referirse al namespace `circleguard-dev`. Crear `k8s/do-dev/peer-authentication.yaml` con el namespace correcto `circleguard-do-dev`.
+
+### Paso 7 — Repetir para do-stage y do-prod (20 min)
+
+```bash
+# do-stage
+cd terraform/envs/do-stage && terraform apply -auto-approve
+terraform output -raw kube_config > ~/.kube/circleguard-do-stage
+# Repetir pasos 2-6 con KUBECONFIG=~/.kube/circleguard-do-stage y namespace circleguard-do-stage
+
+# do-prod
+cd terraform/envs/do-prod && terraform apply -auto-approve
+terraform output -raw kube_config > ~/.kube/circleguard-do-prod
+# Repetir pasos 2-6 con KUBECONFIG=~/.kube/circleguard-do-prod y namespace circleguard-do-prod
+# ✅ Task 11.9 completa
+```
+
+### Paso 8 — Jenkins + docs (30 min)
+
+- Agregar credenciales `do-dev-kubeconfig`, `do-stage-kubeconfig`, `do-prod-kubeconfig` en Jenkins
+- Agregar stage paralelo de deploy en `ci/Jenkinsfile.dev`
+- Documentar LB activo-pasivo en `docs/operations/multi-cloud.md`
+- Correr Locust contra GCP prod y DO prod, comparar métricas
+- ✅ Tasks 11.10–11.12 completas
+
+---
+
+## Jenkins
+
+- Container: `circleguard-jenkins` — `docker start circleguard-jenkins && docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
+- URL: http://localhost:8080 | Password: `0de72cfcad744533ad0b8dca62e9b879`
+
+## Identidad GCP
+
+- Project: `tallerfinal-496702` | Region: `us-central1`
+- Terraform state: `gs://circle-guard-tfstate-496702/`
