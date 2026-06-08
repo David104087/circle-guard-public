@@ -11,7 +11,7 @@ module "vpc" {
 module "gke" {
   source              = "../../modules/gke"
   project_id          = var.project_id
-  region              = var.region
+  region              = "us-central1-a"
   cluster_name        = "circleguard-prod"
   network_id          = module.vpc.network_id
   subnet_id           = module.vpc.subnet_id

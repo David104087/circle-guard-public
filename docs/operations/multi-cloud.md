@@ -199,25 +199,34 @@ stage('Deploy to DO Production') {
 
 ## Performance Comparison
 
-> To be completed after both prod clusters are running with the same load profile.
+**Test date:** 2026-06-08 · **Tool:** Locust 2.43.4 · **Profile:** 50 users, spawn 5/s, 2 min  
+**Endpoint:** `POST /api/v1/auth/visitor/handoff` via `kubectl port-forward svc/auth-service 8180:8180`  
+**Full results:** [`tests/performance/comparison-results.md`](../../tests/performance/comparison-results.md)
 
 ```bash
-# GCP prod endpoint
-locust -f tests/performance/locustfile.py --host=http://<GCP_PROD_IP> \
-  --headless -u 50 -r 5 --run-time 2m --html=results-gcp-prod.html
-
-# DO prod endpoint
-locust -f tests/performance/locustfile.py --host=http://<DO_PROD_IP> \
-  --headless -u 50 -r 5 --run-time 2m --html=results-do-prod.html
+# Reproducir el test contra cualquier cloud:
+kubectl port-forward -n <namespace> svc/auth-service 8180:8180 &
+locust -f tests/performance/locustfile_comparison.py \
+  --host http://localhost:8180 --headless -u 50 -r 5 --run-time 2m \
+  --html results-<cloud>.html --csv results-<cloud>
 ```
 
-| Metric | GCP (us-central1) | DigitalOcean (nyc1) |
-|--------|-------------------|---------------------|
-| p50 latency | TBD | TBD |
-| p95 latency | TBD | TBD |
-| p99 latency | TBD | TBD |
-| RPS | TBD | TBD |
-| Error rate | TBD | TBD |
+| Metric | GCP prod (us-central1-a) | DO prod (nyc1) | Winner |
+|--------|--------------------------|----------------|--------|
+| visitor/handoff — p50 | **250 ms** | 370 ms | GCP ✅ |
+| visitor/handoff — p95 | **530 ms** | 1 000 ms | GCP ✅ |
+| visitor/handoff — p99 | **710 ms** | 2 200 ms | GCP ✅ |
+| login — p50 | **18 000 ms** | 21 000 ms | GCP ✅ |
+| login — p95 | **20 000 ms** | 25 000 ms | GCP ✅ |
+| Total RPS | **4.04** | 3.47 | GCP ✅ |
+| Error rate | **0%** | 0% | Tie |
+| Node cost/hr | $0.033 (e2-medium) | **$0.024** (s-2vcpu-4gb) | DO ✅ |
+| Control plane cost | $0.10/h | **$0 (free)** | DO ✅ |
+
+**Key finding:** GCP is 32–68% faster on p50–p99 latency for visitor/handoff (250ms vs 370ms p50).
+DO node runs under CPU pressure with all 8 services + Istio on 2 vCPUs; GCP test used a dedicated node.
+DO is the cost-optimal choice for dev/staging; GCP is correct for production traffic.
+This validates the **active-passive DNS strategy**: GCP as primary, DO as hot standby.
 
 ## Cost Comparison
 
