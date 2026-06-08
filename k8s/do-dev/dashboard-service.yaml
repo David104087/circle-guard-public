@@ -48,19 +48,18 @@ spec:
           ports:
             - containerPort: 8084
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8084
-            initialDelaySeconds: 300
-            periodSeconds: 20
-            failureThreshold: 3
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /actuator/health
               port: 8084
-            initialDelaySeconds: 180
-            periodSeconds: 10
-            failureThreshold: 3
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            failureThreshold: 5
           envFrom:
             - configMapRef:
                 name: dashboard-service-config

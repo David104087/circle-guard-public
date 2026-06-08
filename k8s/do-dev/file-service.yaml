@@ -27,19 +27,18 @@ spec:
           ports:
             - containerPort: 8085
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8085
-            initialDelaySeconds: 300
-            periodSeconds: 20
-            failureThreshold: 3
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /actuator/health
               port: 8085
-            initialDelaySeconds: 180
-            periodSeconds: 10
-            failureThreshold: 3
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            failureThreshold: 5
           env:
             - name: SERVER_PORT
               value: "8085"
