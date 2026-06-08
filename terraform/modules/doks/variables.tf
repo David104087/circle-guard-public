@@ -24,7 +24,7 @@ variable "node_count" {
 variable "min_nodes" {
   type        = number
   description = "Minimum nodes for autoscaling"
-  default     = 1
+  default     = 0
 }
 
 variable "max_nodes" {
@@ -48,17 +48,5 @@ variable "environment" {
 variable "tags" {
   type        = list(string)
   description = "Additional tags to attach to the cluster."
-  default     = []
-}
-
-variable "environment" {
-  type        = string
-  description = "Environment label (dev, stage, prod). Applied to node pool labels."
-  default     = "dev"
-}
-
-variable "tags" {
-  type        = list(string)
-  description = "Additional tags to attach to the cluster"
   default     = []
 }
