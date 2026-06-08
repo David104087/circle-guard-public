@@ -24,7 +24,7 @@ type: Opaque
 stringData:
   SPRING_DATASOURCE_PASSWORD: "password"
   SPRING_NEO4J_AUTHENTICATION_PASSWORD: "password"
-  JWT_SECRET: "circleguard-jwt-secret"
+  JWT_SECRET: "circleguard-jwt-signing-secret-key-256bit!!"
 ---
 apiVersion: apps/v1
 kind: Deployment
