@@ -68,11 +68,10 @@ spec:
             periodSeconds: 30
             failureThreshold: 5
           readinessProbe:
-            httpGet:
-              path: /actuator/health
+            tcpSocket:
               port: 8180
-            initialDelaySeconds: 90
-            periodSeconds: 15
+            initialDelaySeconds: 30
+            periodSeconds: 10
             failureThreshold: 5
           resources:
             requests:
