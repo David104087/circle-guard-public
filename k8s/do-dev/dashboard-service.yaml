@@ -29,6 +29,8 @@ metadata:
     version: "latest"
     environment: dev
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
@@ -48,14 +50,14 @@ spec:
             httpGet:
               path: /actuator/health/liveness
               port: 8084
-            initialDelaySeconds: 120
+            initialDelaySeconds: 300
             periodSeconds: 20
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8084
-            initialDelaySeconds: 90
+            initialDelaySeconds: 180
             periodSeconds: 10
             failureThreshold: 3
           envFrom:
