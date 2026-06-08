@@ -55,24 +55,16 @@ spec:
             - secretRef:
                 name: identity-service-secret
           livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness
+            tcpSocket:
               port: 8083
-            initialDelaySeconds: 300
-            periodSeconds: 20
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness
-              port: 8083
-            initialDelaySeconds: 180
-            periodSeconds: 10
-            failureThreshold: 3
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
           readinessProbe:
             tcpSocket:
               port: 8083
-            initialDelaySeconds: 180
-            periodSeconds: 15
+            initialDelaySeconds: 30
+            periodSeconds: 10
             failureThreshold: 5
           resources:
             requests:
