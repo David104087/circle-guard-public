@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-08 — **Phase 11 COMPLETA (bonus multi-cloud 5% ✅).** Todas las tasks 11.1–11.13 completadas. Todos los clusters DO están activos con 8 servicios `2/2 Running` y PeerAuthentication STRICT en los 3 envs. Pending: Tasks 11.10–11.13 (Jenkins + docs + Locust). GCP clusters a 0 nodos (escalados). DO clusters están activos — ESCALAR A 0 AL CERRAR SESIÓN.
+2026-06-08 — **Fin de sesión. Phase 11 (Multi-Cloud) COMPLETA 🟢.** Todos los clusters DO destruidos. GCP prod en proceso de scale-down a 0 nodos (autoscaling deshabilitado manualmente). Próxima tarea: Phase 13 — FinOps.
 
 ---
 
@@ -28,128 +28,95 @@
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
 | Phase 11 — Multi-Cloud (Bonus) | 🟢 COMPLETA |
 | Phase 12 — Chaos Engineering | 🔴 No iniciada |
-| Phase 13 — FinOps | 🟡 Parcial |
-
----
-
-## ⚠️ ACCIÓN REQUERIDA AL CERRAR SESIÓN
-
-Los 3 clusters DO están activos y facturando. Escalar a 0 nodos:
-
-```bash
-export TF_VAR_do_token="dop_v1_..."
-
-cd terraform/envs/do-dev
-terraform apply -var="node_count=0" -auto-approve
-
-cd ../do-stage
-terraform apply -var="node_count=0" -auto-approve
-
-cd ../do-prod
-terraform apply -var="node_count=0" -auto-approve
-```
-
-O usar doctl:
-```bash
-# Obtener cluster IDs
-doctl kubernetes cluster list
-doctl kubernetes cluster node-pool list <CLUSTER_ID>
-doctl kubernetes cluster node-pool update <CLUSTER_ID> <POOL_ID> --count 0
-```
+| Phase 13 — FinOps | 🟡 Parcial (tasks 13.1–13.8 pendientes) |
 
 ---
 
 ## Infraestructura GCP (estado actual)
 
-| Cluster | Estado |
-|---------|--------|
-| circleguard-dev | 0 nodos (escalado) |
-| circleguard-prod | 0 nodos (escalado) |
-| circleguard-stage | destruido |
+| Cluster | Estado | Notas |
+|---------|--------|-------|
+| circleguard-dev | 0 nodos (destruido) | `terraform destroy` pendiente si se quiere limpiar state |
+| circleguard-stage | destruido | state limpio |
+| circleguard-prod | scale-down a 0 en progreso | zona us-central1-a (zonal, no regional — ver Known Issues GCE_STOCKOUT) |
 
-Para escalar dev a 1 nodo: `gcloud container clusters resize circleguard-dev --node-pool=default-pool --num-nodes=1 --region=us-central1 --project=tallerfinal-496702 --quiet`
+> **IMPORTANTE:** circleguard-prod tiene autoscaling DESHABILITADO (deshabilitado manualmente el 2026-06-08 para forzar scale-down). Al iniciar la próxima sesión, si se necesita el cluster, re-habilitar con:
+> ```bash
+> gcloud container node-pools update default-pool \
+>   --cluster=circleguard-prod \
+>   --zone=us-central1-a \
+>   --project=tallerfinal-496702 \
+>   --enable-autoscaling --min-nodes=0 --max-nodes=5
+> ```
 
----
-
-## Infraestructura DO (estado actual: TODOS ACTIVOS)
-
-| Cluster | Estado | Node size | Istio | Services |
-|---------|--------|-----------|-------|---------|
-| circleguard-do-dev | 1 nodo ACTIVO | s-4vcpu-8gb | ✅ STRICT mTLS | 8/8 servicios 2/2 Running |
-| circleguard-do-stage | 1 nodo ACTIVO | s-2vcpu-4gb | ✅ STRICT mTLS | 8/8 servicios 2/2 Running |
-| circleguard-do-prod | 1 nodo ACTIVO | s-2vcpu-4gb | ✅ STRICT mTLS | 8/8 servicios 2/2 Running |
-
-**Nota infra:** Kafka y Neo4j pueden estar Pending en do-stage/do-prod (s-2vcpu-4gb insuficiente). Los servicios de aplicación funcionan correctamente con tcpSocket probes.
-
-**Kubeconfigs DO:** expiran ~1h. Refrescar con:
+Para escalar prod a 1 nodo:
 ```bash
-cd terraform/envs/do-dev && terraform output -raw kube_config > ~/.kube/circleguard-do-dev
-cd terraform/envs/do-stage && terraform output -raw kube_config > ~/.kube/circleguard-do-stage
-cd terraform/envs/do-prod && terraform output -raw kube_config > ~/.kube/circleguard-do-prod
+gcloud container clusters resize circleguard-prod --node-pool=default-pool --num-nodes=1 --zone=us-central1-a --project=tallerfinal-496702 --quiet
+```
+
+Para escalar dev a 1 nodo (si se necesita recrear):
+```bash
+# Primero verificar si circleguard-dev existe:
+gcloud container clusters list --project=tallerfinal-496702
+# Si no existe, aplicar terraform:
+cd terraform/envs/dev && terraform apply -auto-approve
 ```
 
 ---
 
-## Playbook para la próxima sesión (Tasks 11.10–11.13)
+## Infraestructura DO (estado actual: DESTRUIDA)
 
-### Paso 0 — Refrescar clusters DO (si están escalados a 0)
+| Cluster | Estado |
+|---------|--------|
+| circleguard-do-dev | Destruido (terraform state vacío) |
+| circleguard-do-stage | Destruido (terraform state vacío) |
+| circleguard-do-prod | Destruido (terraform state vacío) |
 
+Para recrear (necesita DO token):
 ```bash
 export TF_VAR_do_token="dop_v1_..."
-
 for env in do-dev do-stage do-prod; do
-  cd terraform/envs/$env
-  terraform apply -auto-approve
+  cd terraform/envs/$env && terraform apply -auto-approve
   terraform output -raw kube_config > ~/.kube/circleguard-$env
   cd -
 done
 ```
 
-Verificar que todos los pods están Running:
+---
+
+## Rama activa
+
+`feat/multi-cloud-bonus` — contiene Phase 11 completa + todos los cambios del proyecto.
+Pendiente: hacer PR a `master` en GitHub (hacerlo manualmente en github.com/David104087/circle-guard-public).
+
+---
+
+## Próxima sesión: Phase 13 — FinOps
+
+### Tareas a completar (13.1–13.8)
+
+**13.1 — GCP Billing Export a BigQuery** *(acción manual en consola GCP)*
+- GCP Console → Billing → Billing export → BigQuery export
+- Dataset: `billing_export`, project: `tallerfinal-496702`
+- Tarda 24–48h en acumular datos
+
+**13.2 — Kubecost** *(requiere cluster activo)*
 ```bash
-for env in do-dev do-stage do-prod; do
-  KUBECONFIG=~/.kube/circleguard-$env kubectl get pods -n circleguard-$env 2>/dev/null | tail -3
-done
+helm repo add kubecost https://kubecost.github.io/cost-analyzer/
+helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace
 ```
 
-### Paso 1 — Task 11.10: Jenkins credentials para DO
+**13.3 — Dashboard Grafana de costos** — JSON en `k8s/monitoring/dashboards/finops.json`
 
-Agregar kubeconfigs como FileCredentials en Jenkins:
-1. Abrir http://localhost:8080 → Manage Jenkins → Credentials → Global → Add Credentials
-2. Tipo: Secret file, ID: `do-dev-kubeconfig`, archivo: `~/.kube/circleguard-do-dev`
-3. Repetir para `do-stage-kubeconfig` y `do-prod-kubeconfig`
+**13.4 — Automatizar scale-to-zero** — actualizar `ci/session-stop.sh`
 
-Luego agregar stage paralelo en `ci/Jenkinsfile.dev`:
-```groovy
-stage('Deploy to DO Dev') {
-  when { branch 'feat/*' }
-  steps {
-    withCredentials([file(credentialsId: 'do-dev-kubeconfig', variable: 'DO_KUBECONFIG')]) {
-      sh "KUBECONFIG=${DO_KUBECONFIG} kubectl apply -f k8s/do-dev/ -n circleguard-do-dev"
-    }
-  }
-}
-```
+**13.5 — Variable spot_node_pool** — añadir a `terraform/modules/gke/`
 
-### Paso 2 — Task 11.11: Documentar estrategia LB
+**13.6 — Auditar resource requests/limits** — verificar todos los Deployments en `k8s/dev/`, `k8s/stage/`, `k8s/production/`
 
-Actualizar `docs/operations/multi-cloud.md` con sección de cross-cloud load balancing:
-- DNS activo-pasivo: GCP primario, DO standby
-- Failover manual via actualización de registro DNS
-- Ruta futura: Cloudflare active-active con health checks
+**13.7 — Cost optimization analysis** — actualizar `docs/operations/costs.md`
 
-### Paso 3 — Task 11.12: Performance comparison
-
-Levantar GCP prod a 1 nodo, correr Locust contra ambos endpoints:
-```bash
-gcloud container clusters resize circleguard-prod --node-pool=default-pool --num-nodes=1 --region=us-central1 --project=tallerfinal-496702 --quiet
-# Obtener IPs externas via kubectl get svc -n circleguard-production
-# Correr Locust contra GCP prod y DO prod con mismo perfil
-```
-
-### Paso 4 — Task 11.13: Diagrama infraestructura
-
-Agregar los 3 clusters DO al diagrama Mermaid en `docs/diagrams/infrastructure.md`.
+**13.8 — FinOps strategies doc** — crear `docs/operations/finops.md`
 
 ---
 
@@ -162,3 +129,4 @@ Agregar los 3 clusters DO al diagrama Mermaid en `docs/diagrams/infrastructure.m
 
 - Project: `tallerfinal-496702` | Region: `us-central1`
 - Terraform state: `gs://circle-guard-tfstate-496702/`
+- GCP prod cluster: `circleguard-prod` en zona `us-central1-a` (zonal, no regional)
