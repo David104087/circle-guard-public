@@ -355,7 +355,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 11 — Multi-Cloud (Bonus 5%) 🟡
+## Phase 11 — Multi-Cloud (Bonus 5%) 🟢
 
 **Goal:** Deploy CircleGuard on DigitalOcean DOKS mirroring the GCP setup: 3 clusters (do-dev, do-stage, do-prod) with same standards, same K8s manifests, same Istio mesh. Demonstrate cross-cloud redundancy and compare performance.
 **Depends on:** Phase 1 (Terraform modules must exist to adapt), Phase 2 (K8s manifests must be cloud-agnostic)
@@ -390,6 +390,7 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 <!-- progress: Completed 2026-06-08. All 8 app services 2/2 Running in do-dev (8GB node), do-stage and do-prod (4GB nodes with infra sidecar injection disabled). PeerAuthentication STRICT in all 3 clusters. Kafka/Neo4j Pending in do-stage/do-prod due to s-2vcpu-4gb memory constraints — non-blocking since those envs scale to 0 between sessions. -->
 - [x] **11.10 — Jenkins pipeline deploys to all DO envs.** Add `do-dev-kubeconfig`, `do-stage-kubeconfig`, `do-prod-kubeconfig` credentials in Jenkins. Add optional parallel deploy stages in Jenkinsfiles.
 <!-- progress: ci/Jenkinsfile.dev updated with parallel 'Deploy to DO DEV' stage using withCredentials([file(credentialsId: 'do-dev-kubeconfig')]). Jenkins credentials must still be registered manually (FileCredentials, IDs: do-dev-kubeconfig, do-stage-kubeconfig, do-prod-kubeconfig). -->
+- [x] **11.11 — Cross-cloud load balancing documented.** Active-passive DNS strategy: GCP primary, DO hot standby. DNS TTL 60s for fast failover. Future path: Cloudflare active-active with health checks. Documented in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md) under "Cross-Cloud Load Balancing Strategy".
 - [x] **11.12 — Performance comparison.** Run Locust test against GCP prod and do-prod endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
 <!-- progress: 2026-06-08. locustfile_comparison.py, 50 users, 2min. visitor/handoff: GCP p50=250ms p95=530ms RPS=1.66; DO p50=370ms p95=1000ms RPS=1.53. GCP 32-68% faster. Full results in tests/performance/comparison-results.md. -->
 - [x] **11.13 — Architecture diagram updated.** Add all 3 DO clusters to [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) Mermaid diagram.
