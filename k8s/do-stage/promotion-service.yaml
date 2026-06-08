@@ -22,21 +22,9 @@ metadata:
   namespace: circleguard-do-stage
 type: Opaque
 stringData:
-  SPRING_DATASOURCE_PASSWORD:
-              valueFrom:
-                secretKeyRef:
-                  name: db-password
-                  key: password
-  SPRING_NEO4J_AUTHENTICATION_PASSWORD:
-              valueFrom:
-                secretKeyRef:
-                  name: neo4j-credentials
-                  key: password
-  JWT_SECRET:
-              valueFrom:
-                secretKeyRef:
-                  name: jwt-secret
-                  key: secret
+  SPRING_DATASOURCE_PASSWORD: "password"
+  SPRING_NEO4J_AUTHENTICATION_PASSWORD: "password"
+  JWT_SECRET: "circleguard-jwt-secret"
 ---
 apiVersion: apps/v1
 kind: Deployment

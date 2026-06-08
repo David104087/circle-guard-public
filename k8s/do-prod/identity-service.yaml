@@ -16,21 +16,9 @@ metadata:
   namespace: circleguard-do-prod
 type: Opaque
 stringData:
-  SPRING_DATASOURCE_PASSWORD:
-              valueFrom:
-                secretKeyRef:
-                  name: db-password
-                  key: password
-  JWT_SECRET:
-              valueFrom:
-                secretKeyRef:
-                  name: jwt-secret
-                  key: secret
-  VAULT_SECRET:
-              valueFrom:
-                secretKeyRef:
-                  name: vault-secret
-                  key: secret
+  SPRING_DATASOURCE_PASSWORD: "password"
+  JWT_SECRET: "circleguard-jwt-secret"
+  VAULT_SECRET: "circleguard-vault-secret"
   VAULT_SALT: "deadbeef"
   VAULT_HASH_SALT: "12345678"
 ---
