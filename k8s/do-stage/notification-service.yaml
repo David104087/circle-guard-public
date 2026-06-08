@@ -30,7 +30,7 @@ spec:
   template:
     metadata:
       annotations:
-        sidecar.istio.io/proxyCPU: "50m"
+        sidecar.istio.io/proxyCPU: "25m"
         sidecar.istio.io/proxyMemory: "64Mi"
         sidecar.istio.io/proxyMemoryLimit: "96Mi"
       labels:
@@ -64,7 +64,7 @@ spec:
           resources:
             requests:
               memory: "64Mi"
-              cpu: "50m"
+              cpu: "25m"
             limits:
               memory: "512Mi"
               cpu: "500m"
