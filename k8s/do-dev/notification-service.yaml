@@ -10,6 +10,8 @@ data:
   SPRING_MAIL_PORT: "1025"
   AUTH_API_URL: "http://auth-service:8180"
   SERVER_PORT: "8082"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
   JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
 ---
 apiVersion: apps/v1

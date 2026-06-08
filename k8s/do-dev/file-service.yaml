@@ -42,6 +42,10 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8085"
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "health,info,prometheus,metrics"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+              value: "always"
             - name: JAVA_TOOL_OPTIONS
               value: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
           volumeMounts:

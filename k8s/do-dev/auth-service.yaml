@@ -13,6 +13,8 @@ data:
   IDENTITY_SERVICE_URL: "http://identity-service:8083"
   SERVER_PORT: "8180"
   MANAGEMENT_HEALTH_LDAP_ENABLED: "false"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
   JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
 ---
 apiVersion: v1
