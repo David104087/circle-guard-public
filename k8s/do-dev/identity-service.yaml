@@ -56,20 +56,20 @@ spec:
             httpGet:
               path: /actuator/health/liveness
               port: 8083
-            initialDelaySeconds: 45
+            initialDelaySeconds: 120
             periodSeconds: 20
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8083
-            initialDelaySeconds: 30
+            initialDelaySeconds: 90
             periodSeconds: 10
             failureThreshold: 3
           readinessProbe:
             tcpSocket:
               port: 8083
-            initialDelaySeconds: 30
+            initialDelaySeconds: 90
             periodSeconds: 15
             failureThreshold: 5
           resources:
