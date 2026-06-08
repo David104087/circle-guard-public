@@ -44,6 +44,10 @@ spec:
       labels:
         app: form-service
     spec:
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: form-service
           image: davidartunduaga/circleguard-form:latest

@@ -51,6 +51,10 @@ spec:
       labels:
         app: promotion-service
     spec:
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: promotion-service
           image: davidartunduaga/circleguard-promotion:latest

@@ -36,6 +36,10 @@ spec:
       labels:
         app: notification-service
     spec:
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: notification-service
           image: davidartunduaga/circleguard-notification:latest

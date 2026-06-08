@@ -44,6 +44,10 @@ spec:
       labels:
         app: gateway-service
     spec:
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: gateway-service
           image: davidartunduaga/circleguard-gateway:latest
