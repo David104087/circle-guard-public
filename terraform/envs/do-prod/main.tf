@@ -27,8 +27,8 @@ module "doks" {
   region             = var.region
   kubernetes_version = "1.31"
   environment        = "prod"
-  node_count         = 2
+  node_count         = 1
   min_nodes          = 0
-  max_nodes          = 5
+  max_nodes          = 2
   node_size          = "s-2vcpu-4gb"
 }
