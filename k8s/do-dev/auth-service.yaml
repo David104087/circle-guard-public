@@ -23,8 +23,8 @@ type: Opaque
 stringData:
   SPRING_DATASOURCE_PASSWORD: "password"
   SPRING_LDAP_PASSWORD: "password"
-  JWT_SECRET: "circleguard-do-dev-jwt-secret"
-  QR_SECRET: "circleguard-do-dev-qr-secret"
+  JWT_SECRET: "circleguard-do-dev-jwt-signing-secret-key!!"
+  QR_SECRET: "circleguard-do-dev-qr-signing-secret-key!!!"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -79,7 +79,7 @@ spec:
           resources:
             requests:
               memory: "64Mi"
-              cpu: "100m"
+              cpu: "50m"
             limits:
               memory: "512Mi"
               cpu: "500m"

@@ -16,8 +16,8 @@ metadata:
   namespace: circleguard-do-stage
 type: Opaque
 stringData:
-  JWT_SECRET: "circleguard-do-stage-jwt-secret"
-  QR_SECRET: "circleguard-do-stage-qr-secret"
+  JWT_SECRET: "circleguard-do-stage-jwt-signing-secret-key!!"
+  QR_SECRET: "circleguard-do-stage-qr-signing-secret-key!!!"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -72,7 +72,7 @@ spec:
           resources:
             requests:
               memory: "64Mi"
-              cpu: "100m"
+              cpu: "50m"
             limits:
               memory: "512Mi"
               cpu: "500m"
