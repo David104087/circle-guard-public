@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-30 — **PROYECTO FINAL COMPLETO** 🟢 Phases 0–10 completadas. Cierre de 3 huecos de auditoría: (1) 8 dashboards Grafana por servicio en `k8s/monitoring/dashboards/` (cargados vía sidecar + kustomization), (2) métrica de negocio Micrometer en los 8 servicios (antes solo 3), (3) primera release `v0.1.0` con `RELEASE_NOTES_v0.1.0.md` + tag + GitHub Release. Dev cluster running (1 nodo, circleguard-dev). ESO instalado con ClusterSecretStore en dev. Infraestructura: clusters dev y prod RUNNING.
+2026-06-08 — **Phase 11 Multi-Cloud en progreso.** DO dev cluster recreado con s-4vcpu-8gb (8GB RAM). Manifests DO actualizados con JAVA_TOOL_OPTIONS y Recreate strategy. Liveness probes pendientes de fix (crash a los 300s exactos por probe HTTP fallando). GCP clusters: todos a 0 nodos. DO clusters: destruidos al final de sesión.
 
 ### Métricas de negocio por servicio (8/8)
 `auth_tokens_issued_total` · `analytics_queries_total` · `files_uploaded_total` · `surveys_submitted_total` · `qr_validations_total` · `identities_registered_total` · `notifications_sent_total` · `health_status_changes_total`
@@ -29,7 +29,7 @@
 | Phase 8 — Security | 🟢 COMPLETA |
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
-| Phase 11 — Multi-Cloud (Bonus) | 🟡 En progreso (3 clusters DO running, pendiente K8s deploy + Istio) |
+| Phase 11 — Multi-Cloud (Bonus) | 🟡 En progreso — tasks 11.1–11.5 ✅, 11.6–11.13 pendientes |
 | Phase 12 — Chaos Engineering (Bonus) | 🔴 No iniciada |
 | Phase 13 — FinOps (Bonus) | 🟡 Parcial (cost doc exists, tooling needed) |
 
@@ -52,9 +52,9 @@
 
 | Cluster | Estado | Nodos |
 |---------|--------|-------|
-| circleguard-dev | RUNNING | 1 (1 zona) |
-| circleguard-prod | RUNNING | 0 (scaled) |
-| circleguard-stage | destruido o 0 nodos |
+| circleguard-dev | 0 nodos (scaled down) | 0 |
+| circleguard-prod | 0 nodos (scaled down) | 0 |
+| circleguard-stage | destruido | — |
 
 **QUOTA:** CPUS_ALL_REGIONS=12. Máximo 2 clusters con nodos simultáneamente.
 
@@ -68,36 +68,81 @@
 - Post-start: `docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
 - Credenciales: dockerhub, github-token, gcp-sa-key, kubeconfig-dev/stage/production, slack-webhook, sonarqube-token
 
-## Kubernetes (dev)
+## Kubernetes (GCP dev)
 
 - ESO instalado en `external-secrets` namespace — `SecretSynced: True` para db-password, jwt-secret, mail-credentials
 - kube-prometheus-stack instalado en `monitoring` namespace
 - Namespaces creados: circleguard-dev, circleguard-stage, circleguard-production
 
-## Próximos pasos
+## DigitalOcean (Multi-Cloud — Phase 11)
 
-### Para demo de lo ya implementado
+**Estado al cierre de sesión 2026-06-08:** Clusters destruidos para evitar costos.
+
+| Cluster DO | Estado | Terraform env | Nodo size |
+|------------|--------|---------------|-----------|
+| circleguard-do-dev | DESTRUIDO (recrear próxima sesión) | `terraform/envs/do-dev/` | s-4vcpu-8gb |
+| circleguard-do-stage | DESTRUIDO | `terraform/envs/do-stage/` | s-2vcpu-4gb |
+| circleguard-do-prod | DESTRUIDO | `terraform/envs/do-prod/` | s-2vcpu-4gb |
+
+### Configuración DO actual (post esta sesión)
+- **do-dev:** `node_size = "s-4vcpu-8gb"`, `node_count=1`, `max_nodes=1` — necesita 8GB para correr 8 JVM services + infra
+- **do-stage/prod:** `node_size = "s-2vcpu-4gb"`, `node_count=1`, `max_nodes=1`
+- **Límite de cuenta:** 3 droplets totales → max_nodes=1 por cluster
+- **Kubeconfigs:** `~/.kube/circleguard-do-dev/stage/prod` — expiran ~1h, refrescar con `terraform output -raw kube_config`
+
+### Manifests DO actualizados (k8s/do-dev/)
+- Todos los servicios tienen `JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m"`
+- Todos los servicios tienen `strategy: type: Recreate`
+- JWT secrets corregidos: ≥43 chars (344 bits) en auth/gateway/identity/promotion
+- **PENDIENTE FIX:** liveness probes deben cambiar a `tcpSocket` (HTTP probe falla por actuator config)
+
+---
+
+## Próximos pasos — Phase 11 (próxima sesión)
+
+### PRIMERO — Fix liveness probes en k8s/do-dev/ (desbloqueador)
+Cambiar en todos los 8 services el liveness probe de `httpGet /actuator/health/liveness` a:
+```yaml
+livenessProbe:
+  tcpSocket:
+    port: <PORT>
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 5
+readinessProbe:
+  httpGet:
+    path: /actuator/health
+    port: <PORT>
+  initialDelaySeconds: 90
+  periodSeconds: 15
+  failureThreshold: 5
+```
+
+### Secuencia de deploy (do-dev)
+```bash
+export TF_VAR_do_token="dop_v1_..."
+cd terraform/envs/do-dev && terraform apply -auto-approve
+terraform output -raw kube_config > ~/.kube/circleguard-do-dev
+export KUBECONFIG=~/.kube/circleguard-do-dev
+kubectl apply -f k8s/do-dev/00-namespace.yaml
+kubectl apply -f k8s/do-dev/infrastructure/
+# Esperar postgres-0 Running (~2min)
+kubectl exec postgres-0 -n circleguard-do-dev -- psql -U admin -l  # verificar DBs
+kubectl apply -f k8s/do-dev/
+# Esperar todos 1/1 Running (~5min)
+```
+
+### Istio en do-dev
+```bash
+istioctl install --set profile=demo -y --kubeconfig ~/.kube/circleguard-do-dev
+kubectl label namespace circleguard-do-dev istio-injection=enabled --kubeconfig ~/.kube/circleguard-do-dev
+kubectl apply -f k8s/istio/peer-authentication.yaml --kubeconfig ~/.kube/circleguard-do-dev
+kubectl rollout restart deployment -n circleguard-do-dev --kubeconfig ~/.kube/circleguard-do-dev
+```
+
+### Para demo de GCP (si se necesita)
 1. `terraform apply` en dev y prod si clusters están destruidos
 2. Instalar Istio: `istioctl install --set profile=demo -y`
 3. Aplicar manifests: `k8s/00-namespaces.yaml`, `k8s/infrastructure/`, `k8s/dev/`, `k8s/istio/`
-4. Instalar ESO: `helm upgrade --install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true`
-5. Aplicar `k8s/dev/external-secrets/cluster-secret-store.yaml` y `external-secrets.yaml`
-6. Instalar kube-prometheus: `helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f k8s/monitoring/kube-prometheus-values.yaml`
-7. Tomar screenshot de Kiali para task 3.11
-
-## DigitalOcean (Multi-Cloud — Phase 11)
-
-Infraestructura como código lista — pendiente ejecución cuando se tenga DO_TOKEN.
-
-| Cluster DO | Estado | Terraform env |
-|------------|--------|---------------|
-| circleguard-do-dev | ✅ RUNNING — 1 nodo Ready (v1.36.0) | `terraform/envs/do-dev/` |
-| circleguard-do-stage | ✅ RUNNING — 1 nodo Ready (v1.36.0) | `terraform/envs/do-stage/` |
-| circleguard-do-prod | ✅ RUNNING — 1 nodo Ready (v1.36.0) | `terraform/envs/do-prod/` |
-
-K8s manifests listos en `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` (namespace + 8 servicios + infraestructura por env).
-
-### Bonus pendientes (fases 11–13)
-- **Phase 11 — Multi-Cloud:** Infra code lista. Pendiente: DO_TOKEN → `terraform apply` en los 3 envs → deploy K8s → Istio → Jenkins integration
-- **Phase 12 — Chaos Engineering:** Instalar Chaos Mesh en dev, ejecutar 5 experimentos documentados
-- **Phase 13 — FinOps:** Instalar Kubecost, habilitar billing export a BigQuery, crear dashboard Grafana de costos
+4. Instalar ESO, kube-prometheus-stack
+5. Tomar screenshot de Kiali para task 3.11

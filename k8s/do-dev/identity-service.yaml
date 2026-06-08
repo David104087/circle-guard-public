@@ -8,6 +8,7 @@ data:
   SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/circleguard_identity"
   SPRING_DATASOURCE_USERNAME: "admin"
   SERVER_PORT: "8083"
+  JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
 ---
 apiVersion: v1
 kind: Secret
@@ -64,12 +65,6 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8083
-            initialDelaySeconds: 180
-            periodSeconds: 10
-            failureThreshold: 3
-          readinessProbe:
-            tcpSocket:
               port: 8083
             initialDelaySeconds: 180
             periodSeconds: 15

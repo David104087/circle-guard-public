@@ -9,6 +9,7 @@ data:
   SPRING_DATASOURCE_USERNAME: "admin"
   SPRING_KAFKA_BOOTSTRAP-SERVERS: "kafka:9092"
   SERVER_PORT: "8086"
+  JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
 ---
 apiVersion: v1
 kind: Secret

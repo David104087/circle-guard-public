@@ -801,6 +801,42 @@ Then apply/resize the target cluster. All envs use `min_node_count = 0` so the a
 **Root cause:** When GKE regional clusters scale up/down, nodes land in specific zones. The Neo4j PVC is bound to a PV in a particular zone (e.g. `us-central1-b`). If no node exists in that zone, the pod stays `Pending` indefinitely. GCE quota prevents autoscaler from adding a node in that zone if total vCPUs are at limit.
 **Fix:** Delete the PVC and pod so the StatefulSet recreates them in a zone where nodes exist: `kubectl delete pod neo4j-0 -n circleguard-production --force --grace-period=0 && kubectl delete pvc neo4j-data-neo4j-0 -n circleguard-production`. The StatefulSet creates a new PVC in an available zone automatically. Note: this loses Neo4j data (acceptable for test environments).
 
+### DO node MemoryPressure — 4GB insufficient for 8 JVM services + JVM infrastructure
+
+**Context:** `k8s/do-dev/`, DOKS `s-2vcpu-4gb` node (4GB RAM, 3GB allocatable).
+**Root cause:** Running 8 Spring Boot services + Kafka (JVM) + Zookeeper (JVM) + Neo4j (JVM) + Postgres on a single 4GB node exceeds available memory. The node hits `MemoryPressure: True` and adds a `node.kubernetes.io/memory-pressure:NoSchedule` taint. Existing pods get evicted via SIGTERM as kubelet reclaims memory. The node needs ~5.5GB minimum: 8 services × ~300MB + 3 JVM infrastructure × ~350MB + OS/K8s overhead ~600MB.
+**Fix:** Use `s-4vcpu-8gb` (8GB) for do-dev. Change `node_size = "s-4vcpu-8gb"` in `terraform/envs/do-dev/main.tf`. Also add `JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"` to each service ConfigMap to limit JVM heap to 256MB per service. Zookeeper also needs `ZOOKEEPER_HEAP_OPTS: "-Xms128M -Xmx192M"` (default is 512MB). do-stage and do-prod can keep `s-2vcpu-4gb` since they scale to 0 between sessions.
+**Prevention:** Never use `s-2vcpu-4gb` for a DO env that will run all 8 services simultaneously.
+
+### DO autoscaler reserves max_nodes for droplet quota — must set max_nodes=1
+
+**Context:** `terraform/envs/do-*/main.tf`, DigitalOcean account with 3-droplet limit.
+**Root cause:** DigitalOcean counts `max_nodes` (not `node_count`) toward the droplet quota check when creating a cluster. With account limit of 3 droplets and 3 clusters (do-dev, do-stage, do-prod), setting `max_nodes=3` on any cluster causes a 422 error: "autoscale desired max nodes exceed limits". Even with only 1 actual node running per cluster, DO rejects the cluster creation.
+**Fix:** Set `max_nodes = 1` on ALL three DO envs. This matches the single-node deployment model for this project. The autoscaler is effectively disabled but scale-to-zero still works (min_nodes=0).
+
+### DO DOKS kubeconfig token expires ~hourly
+
+**Context:** `~/.kube/circleguard-do-dev`, any kubectl command against DO cluster.
+**Root cause:** DOKS kubeconfig tokens are short-lived (~1 hour). After expiry, all kubectl commands fail with "the server has asked for the client to provide credentials".
+**Fix:** Refresh the kubeconfig: `cd terraform/envs/do-dev && terraform output -raw kube_config > ~/.kube/circleguard-do-dev`. Must be re-run every ~1 hour during active sessions.
+
+### Spring Boot liveness probe crashes pod at exactly initialDelaySeconds — actuator endpoint not enabled
+
+**Context:** `k8s/do-dev/*.yaml`, all 8 services, liveness probe `httpGet /actuator/health/liveness`.
+**Root cause:** Spring Boot only exposes `/actuator/health/liveness` and `/actuator/health/readiness` as separate HTTP endpoints when the `LivenessStateHealthIndicator` is explicitly enabled (`MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED=true`) OR when running in a recognized Kubernetes context with appropriate config. Without this, the endpoint either returns 404 or is not mounted. The liveness probe fails on its very first check (at `initialDelaySeconds` seconds), K8s sends SIGTERM, and the service gracefully shuts down. This appears as a crash at exactly 300s after startup — even though the service was healthy and handling requests.
+**Fix (recommended):** Replace `httpGet /actuator/health/liveness` liveness probes with `tcpSocket` probes. These only verify the port is open (not the actuator endpoint) and never false-fail:
+```yaml
+livenessProbe:
+  tcpSocket:
+    port: <SERVICE_PORT>
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 5
+```
+Keep the readiness probe as `httpGet /actuator/health` (the base health endpoint, which always exists).
+**Alternative fix:** Add `MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"` to all service ConfigMaps.
+**Affected files:** All files in `k8s/do-dev/` — fix must be applied before deploying to DO clusters.
+
 ### Istio sidecar timing causes CrashLoopBackOff on pod restarts in production
 
 **Context:** `circleguard-production` namespace, `dashboard-service` and other services using PostgreSQL.

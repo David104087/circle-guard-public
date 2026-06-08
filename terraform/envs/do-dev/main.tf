@@ -29,6 +29,6 @@ module "doks" {
   environment        = "dev"
   node_count         = 1
   min_nodes          = 0
-  max_nodes          = 3
-  node_size          = "s-2vcpu-4gb"
+  max_nodes          = 1
+  node_size          = "s-4vcpu-8gb"
 }

@@ -8,6 +8,7 @@ data:
   SPRING_DATA_REDIS_HOST: "redis"
   SPRING_DATA_REDIS_PORT: "6379"
   SERVER_PORT: "8087"
+  JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
 ---
 apiVersion: v1
 kind: Secret
@@ -61,12 +62,6 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8087
-            initialDelaySeconds: 180
-            periodSeconds: 10
-            failureThreshold: 3
-          readinessProbe:
-            tcpSocket:
               port: 8087
             initialDelaySeconds: 180
             periodSeconds: 15
