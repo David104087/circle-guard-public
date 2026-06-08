@@ -11,6 +11,8 @@ spec:
       app: mailhog
   template:
     metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
       labels:
         app: mailhog
     spec:
