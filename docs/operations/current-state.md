@@ -29,7 +29,7 @@
 | Phase 8 — Security | 🟢 COMPLETA |
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
-| Phase 11 — Multi-Cloud (Bonus) | 🟡 En progreso (infra code lista, pendiente apply con DO_TOKEN) |
+| Phase 11 — Multi-Cloud (Bonus) | 🟡 En progreso (3 clusters DO running, pendiente K8s deploy + Istio) |
 | Phase 12 — Chaos Engineering (Bonus) | 🔴 No iniciada |
 | Phase 13 — FinOps (Bonus) | 🟡 Parcial (cost doc exists, tooling needed) |
 
@@ -91,9 +91,9 @@ Infraestructura como código lista — pendiente ejecución cuando se tenga DO_T
 
 | Cluster DO | Estado | Terraform env |
 |------------|--------|---------------|
-| circleguard-do-dev | ⚪ No creado (pendiente DO_TOKEN) | `terraform/envs/do-dev/` |
-| circleguard-do-stage | ⚪ No creado (pendiente DO_TOKEN) | `terraform/envs/do-stage/` |
-| circleguard-do-prod | ⚪ No creado (pendiente DO_TOKEN) | `terraform/envs/do-prod/` |
+| circleguard-do-dev | ✅ RUNNING — 1 nodo Ready (v1.36.0) | `terraform/envs/do-dev/` |
+| circleguard-do-stage | ✅ RUNNING — 1 nodo Ready (v1.36.0) | `terraform/envs/do-stage/` |
+| circleguard-do-prod | ✅ RUNNING — 1 nodo Ready (v1.36.0) | `terraform/envs/do-prod/` |
 
 K8s manifests listos en `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` (namespace + 8 servicios + infraestructura por env).
 

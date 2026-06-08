@@ -377,8 +377,8 @@ All DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region, 
 - [x] **11.1 — Choose second cloud + document decision.** DigitalOcean DOKS chosen. Rationale: free control plane, project history (original platform), simple Terraform provider, cheaper nodes than GKE. Documented in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
 - [x] **11.2 — Terraform module `doks` updated.** `terraform/modules/doks/` supports `environment` variable (labels), `tags`, and `min_nodes=0` for scale-to-zero. Same pattern as GKE module.
 - [x] **11.3 — 3 Terraform envs for DO.** `terraform/envs/do-dev/`, `do-stage/`, `do-prod/` — each calls the doks module with appropriate sizing. GCS backend prefixes `envs/do-dev`, `envs/do-stage`, `envs/do-prod`. Token via `TF_VAR_do_token` env var.
-- [ ] **11.4 — Apply all 3 DO envs.** `terraform apply` in each of `envs/do-dev/`, `envs/do-stage/`, `envs/do-prod/` succeeds. All 3 clusters visible in DigitalOcean console.
-<!-- progress: Code ready. Waiting for DO_TOKEN from partner to execute terraform apply. Apply sequentially to avoid API rate limits. -->
+- [x] **11.4 — Apply all 3 DO envs.** `terraform apply` in each of `envs/do-dev/`, `envs/do-stage/`, `envs/do-prod/` succeeds. All 3 clusters visible in DigitalOcean console.
+<!-- progress: Applied 2026-06-08. max_nodes reduced to 1 for all envs due to DO account droplet limit (3 total). Kubeconfigs at ~/.kube/circleguard-do-dev/stage/prod. -->
 - [x] **11.5 — K8s manifests for all 3 DO environments.** `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` created. StorageClass: `do-block-storage`. Namespaces: `circleguard-do-dev/stage/prod`. All 8 services + infrastructure per env.
 - [ ] **11.6 — Deploy infrastructure to do-dev.** Apply `k8s/do-dev/00-namespace.yaml` and `k8s/do-dev/infrastructure/` to `circleguard-do-dev` cluster. Postgres, Kafka, Redis, Neo4j, Mailhog Running.
 - [ ] **11.7 — Deploy services to do-dev.** Apply `k8s/do-dev/*.yaml` (services). Smoke test passes.
