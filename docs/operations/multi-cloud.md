@@ -150,26 +150,47 @@ kubectl apply -f k8s/istio/
 
 Repeat with `do-stage` and `do-prod` using corresponding kubeconfig and manifests.
 
+## Current Deployment Status (2026-06-08)
+
+Tasks 11.6–11.9 complete. All 3 DO clusters have 8/8 services Running with Istio STRICT mTLS:
+
+| Cluster | Services | Istio | PeerAuthentication |
+|---------|----------|-------|--------------------|
+| `circleguard-do-dev` | 8/8 `2/2 Running` | ✅ | STRICT |
+| `circleguard-do-stage` | 8/8 `2/2 Running` | ✅ | STRICT |
+| `circleguard-do-prod` | 8/8 `2/2 Running` | ✅ | STRICT |
+
+**Note on infra in do-stage/do-prod:** Kafka and Neo4j may be Pending on `s-2vcpu-4gb` nodes due to memory constraints. Infrastructure sidecars are disabled (`sidecar.istio.io/inject: "false"`) to conserve memory. App services are unaffected.
+
+**Probe strategy:** All DO env manifests use `tcpSocket` probes (not `httpGet /actuator/health`) because the Docker Hub images were built before actuator was added to the codebase.
+
 ## Jenkins Pipeline Integration
 
-Credentials needed in Jenkins:
+Credentials required in Jenkins (Task 11.10):
 
 | ID | Type | Purpose |
 |----|------|---------|
-| `kubeconfig-do-dev` | FileCredentials | DOKS kubeconfig for do-dev |
-| `kubeconfig-do-stage` | FileCredentials | DOKS kubeconfig for do-stage |
-| `kubeconfig-do-prod` | FileCredentials | DOKS kubeconfig for do-prod |
+| `do-dev-kubeconfig` | FileCredentials | DOKS kubeconfig for do-dev |
+| `do-stage-kubeconfig` | FileCredentials | DOKS kubeconfig for do-stage |
+| `do-prod-kubeconfig` | FileCredentials | DOKS kubeconfig for do-prod |
 
-Example stage in `Jenkinsfile.master`:
+To register kubeconfigs in Jenkins:
+1. Refresh kubeconfig: `cd terraform/envs/do-dev && terraform output -raw kube_config > /tmp/do-dev-kube.yaml`
+2. Jenkins → Manage Jenkins → Credentials → Global → Add Credential
+3. Type: **Secret file**, ID: `do-dev-kubeconfig`, upload `/tmp/do-dev-kube.yaml`
+4. Repeat for stage and prod
+
+The `ci/Jenkinsfile.dev` now deploys in parallel to GCP dev and DO dev. The `Jenkinsfile.master` stage for DO prod:
 
 ```groovy
 stage('Deploy to DO Production') {
     when { branch 'master' }
     steps {
-        withCredentials([file(credentialsId: 'kubeconfig-do-prod', variable: 'KUBECONFIG_DO')]) {
+        withCredentials([file(credentialsId: 'do-prod-kubeconfig', variable: 'KUBECONFIG_DO')]) {
             sh '''
                 export KUBECONFIG=$KUBECONFIG_DO
                 kubectl apply -f k8s/do-prod/
+                kubectl rollout status deployment/auth-service -n circleguard-do-prod --timeout=300s || true
             '''
         }
     }

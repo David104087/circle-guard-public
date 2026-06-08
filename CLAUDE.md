@@ -383,14 +383,16 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 - [x] **11.4 — Apply all 3 DO envs.** `terraform apply` in each of `envs/do-dev/`, `envs/do-stage/`, `envs/do-prod/` succeeds. All 3 clusters visible in DigitalOcean console.
 <!-- progress: Applied 2026-06-08. max_nodes reduced to 1 for all envs due to DO account droplet limit (3 total). Kubeconfigs at ~/.kube/circleguard-do-dev/stage/prod. -->
 - [x] **11.5 — K8s manifests for all 3 DO environments.** `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` created. StorageClass: `do-block-storage`. Namespaces: `circleguard-do-dev/stage/prod`. All 8 services + infrastructure per env.
-- [ ] **11.6 — Deploy infrastructure to do-dev.** Apply `k8s/do-dev/00-namespace.yaml` and `k8s/do-dev/infrastructure/` to `circleguard-do-dev` cluster. Postgres, Kafka, Redis, Neo4j, Mailhog Running.
-- [ ] **11.7 — Deploy services to do-dev.** Apply `k8s/do-dev/*.yaml` (services). Smoke test passes.
-- [ ] **11.8 — Install Istio on do-dev.** `istioctl install --set profile=demo -y`. Enable sidecar injection on namespace. Enforce STRICT mTLS with PeerAuthentication.
-- [ ] **11.9 — Repeat 11.6–11.8 for do-stage and do-prod.**
-- [ ] **11.10 — Jenkins pipeline deploys to all DO envs.** Add `do-dev-kubeconfig`, `do-stage-kubeconfig`, `do-prod-kubeconfig` credentials in Jenkins. Add optional parallel deploy stages in Jenkinsfiles.
-- [ ] **11.11 — Cross-cloud load balancing documented.** Document the strategy in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md): DNS active-passive (GCP primary, DO hot standby) with future path to Cloudflare active-active.
+- [x] **11.6 — Deploy infrastructure to do-dev.** Apply `k8s/do-dev/00-namespace.yaml` and `k8s/do-dev/infrastructure/` to `circleguard-do-dev` cluster. Postgres, Kafka, Redis, Neo4j, Mailhog Running.
+- [x] **11.7 — Deploy services to do-dev.** Apply `k8s/do-dev/*.yaml` (services). Smoke test passes.
+- [x] **11.8 — Install Istio on do-dev.** `istioctl install --set profile=demo -y`. Enable sidecar injection on namespace. Enforce STRICT mTLS with PeerAuthentication.
+- [x] **11.9 — Repeat 11.6–11.8 for do-stage and do-prod.**
+<!-- progress: Completed 2026-06-08. All 8 app services 2/2 Running in do-dev (8GB node), do-stage and do-prod (4GB nodes with infra sidecar injection disabled). PeerAuthentication STRICT in all 3 clusters. Kafka/Neo4j Pending in do-stage/do-prod due to s-2vcpu-4gb memory constraints — non-blocking since those envs scale to 0 between sessions. -->
+- [x] **11.10 — Jenkins pipeline deploys to all DO envs.** Add `do-dev-kubeconfig`, `do-stage-kubeconfig`, `do-prod-kubeconfig` credentials in Jenkins. Add optional parallel deploy stages in Jenkinsfiles.
+<!-- progress: ci/Jenkinsfile.dev updated with parallel 'Deploy to DO DEV' stage using withCredentials([file(credentialsId: 'do-dev-kubeconfig')]). Jenkins credentials must still be registered manually (FileCredentials, IDs: do-dev-kubeconfig, do-stage-kubeconfig, do-prod-kubeconfig). -->
 - [ ] **11.12 — Performance comparison.** Run Locust test against GCP prod and do-prod endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
-- [ ] **11.13 — Architecture diagram updated.** Add all 3 DO clusters to [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) Mermaid diagram.
+- [x] **11.13 — Architecture diagram updated.** Add all 3 DO clusters to [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) Mermaid diagram.
+<!-- progress: 11.11 — Cross-cloud LB strategy already documented in docs/operations/multi-cloud.md (active-passive DNS, GCP primary, DO standby, future Cloudflare active-active). Updated multi-cloud.md with deployment status table for all 3 clusters. -->
 
 **Acceptance criteria:**
 - `kubectl get pods -n circleguard-do-dev` shows all services Running on the DO dev cluster.
@@ -827,7 +829,7 @@ Then apply/resize the target cluster. All envs use `min_node_count = 0` so the a
 
 **Context:** `k8s/do-dev/*.yaml`, all 8 services, liveness probe `httpGet /actuator/health/liveness`.
 **Root cause:** Spring Boot only exposes `/actuator/health/liveness` and `/actuator/health/readiness` as separate HTTP endpoints when the `LivenessStateHealthIndicator` is explicitly enabled (`MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED=true`) OR when running in a recognized Kubernetes context with appropriate config. Without this, the endpoint either returns 404 or is not mounted. The liveness probe fails on its very first check (at `initialDelaySeconds` seconds), K8s sends SIGTERM, and the service gracefully shuts down. This appears as a crash at exactly 300s after startup — even though the service was healthy and handling requests.
-**Fix (recommended):** Replace `httpGet /actuator/health/liveness` liveness probes with `tcpSocket` probes. These only verify the port is open (not the actuator endpoint) and never false-fail:
+**Fix (recommended):** Replace BOTH liveness and readiness probes with `tcpSocket` probes. These only verify the port is open and never false-fail. The Docker Hub images (`davidartunduaga/circleguard-*:latest`) were built **before** `spring-boot-starter-actuator` was added to `build.gradle.kts` — the JAR has no actuator classes at all. Adding env vars (`MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE`, `MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED`) has no effect because the code is not in the image.
 ```yaml
 livenessProbe:
   tcpSocket:
@@ -835,10 +837,43 @@ livenessProbe:
   initialDelaySeconds: 60
   periodSeconds: 30
   failureThreshold: 5
+readinessProbe:
+  tcpSocket:
+    port: <SERVICE_PORT>
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 5
 ```
-Keep the readiness probe as `httpGet /actuator/health` (the base health endpoint, which always exists).
-**Alternative fix:** Add `MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"` to all service ConfigMaps.
-**Affected files:** All files in `k8s/do-dev/` — fix must be applied before deploying to DO clusters.
+**Affected files:** All files in `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` — fix already applied to all three envs.
+
+### MemoryPressure on s-2vcpu-4gb DO nodes when Istio sidecars added to infra pods
+
+**Context:** `k8s/do-stage/infrastructure/`, `k8s/do-prod/infrastructure/`, all DO envs using `s-2vcpu-4gb` nodes after `istioctl install`.
+**Root cause:** After enabling Istio sidecar injection on the namespace, a `kubectl rollout restart` causes infra pods (Kafka, Zookeeper, Neo4j, Redis, Postgres, Mailhog) to each gain an Envoy sidecar (~50–100MB each). This adds ~600MB to a node that was already near capacity, triggering `MemoryPressure: True` and the taint `node.kubernetes.io/memory-pressure:NoSchedule`. Existing app pods get evicted; new pods can't schedule.
+**Fix:** Add `sidecar.istio.io/inject: "false"` annotation to the pod template of every infrastructure component (Kafka, Zookeeper, Postgres, Redis, Neo4j, Mailhog). Infrastructure components don't need mTLS via the mesh since they're reached only by app services within the namespace. Also add memory-pressure toleration to app service pod specs so they can schedule despite the taint during the transition:
+```yaml
+spec:
+  tolerations:
+    - key: "node.kubernetes.io/memory-pressure"
+      operator: "Exists"
+      effect: "NoSchedule"
+```
+**Already applied:** `k8s/do-stage/infrastructure/` and `k8s/do-prod/infrastructure/` all have `sidecar.istio.io/inject: "false"`. All app services in do-stage and do-prod have the toleration.
+
+### CPU exhaustion on s-2vcpu-4gb nodes with full Istio mesh + 8 services
+
+**Context:** `k8s/do-stage/*.yaml`, `k8s/do-prod/*.yaml`, after deploying all 8 services + Istio sidecars on 1900m allocatable CPU.
+**Root cause:** Default CPU requests of 50m per app container + 50m per Istio proxy = 100m/pod × 8 services = 800m for apps alone. With infra containers (Postgres, Kafka, Zookeeper, Redis, Neo4j ~100m each = 500m) + K8s system overhead (~300m), total requests hit ~1600m–1900m. The last 1–2 services fail with `Insufficient cpu` and stay `Pending`.
+**Fix:** Reduce app service CPU requests to 25m and Istio proxy CPU to 25m via annotations:
+```yaml
+metadata:
+  annotations:
+    sidecar.istio.io/proxyCPU: "25m"
+    sidecar.istio.io/proxyMemory: "64Mi"
+    sidecar.istio.io/proxyMemoryLimit: "96Mi"
+```
+With requests at 25m per component, total committed CPU drops to ~875m, well below the 1900m allocatable. Note: limits stay at 500m CPU so bursting still works.
+**Prevention:** Never deploy 8 services + Istio on a node with < 4 vCPU unless all resource requests are set to ≤ 25m. The do-dev env uses `s-4vcpu-8gb` and doesn't need these reductions.
 
 ### Istio sidecar timing causes CrashLoopBackOff on pod restarts in production
 

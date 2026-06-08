@@ -52,22 +52,24 @@ graph TB
     subgraph DO["DigitalOcean (nyc1) — Multi-Cloud Secondary (3 envs)"]
 
         subgraph DOKS_DEV["DOKS: circleguard-do-dev"]
-            NP_DO_DEV["Node Pool: default-pool\ns-2vcpu-4gb\n0–3 nodes (autoscale)"]
+            NP_DO_DEV["Node Pool: default-pool\ns-4vcpu-8gb\nmax 1 node (DO account limit)"]
             subgraph NS_DO_DEV["Namespace: circleguard-do-dev"]
-                SVCS_DO_DEV["8 microservices\n+ Istio sidecar\n+ STRICT mTLS"]
+                SVCS_DO_DEV["8 microservices\n+ Istio sidecar\n+ STRICT mTLS\n+ infra: Kafka/Postgres/Redis/Neo4j/Mailhog"]
             end
         end
         LB_DO_DEV["DO Load Balancer (dev)"]
 
         subgraph DOKS_STG["DOKS: circleguard-do-stage"]
-            NP_DO_STG["Node Pool: default-pool\ns-2vcpu-4gb\n0–3 nodes (autoscale)"]
-            NS_DO_STG["Namespace: circleguard-do-stage\n8 microservices"]
+            NP_DO_STG["Node Pool: default-pool\ns-2vcpu-4gb\nmax 1 node (DO account limit)"]
+            subgraph NS_DO_STG["Namespace: circleguard-do-stage"]
+                SVCS_DO_STG["8 microservices + Istio STRICT mTLS\n(infra sidecars disabled to save memory)"]
+            end
         end
 
         subgraph DOKS_PRD["DOKS: circleguard-do-prod"]
-            NP_DO_PRD["Node Pool: default-pool\ns-2vcpu-4gb\n0–5 nodes (autoscale)"]
+            NP_DO_PRD["Node Pool: default-pool\ns-2vcpu-4gb\nmax 1 node (DO account limit)"]
             subgraph NS_DO_PRD["Namespace: circleguard-do-prod"]
-                SVCS_DO_PRD["8 microservices\n+ Istio sidecar\n+ STRICT mTLS"]
+                SVCS_DO_PRD["8 microservices + Istio STRICT mTLS\n(infra sidecars disabled to save memory)"]
             end
         end
         LB_DO_PRD["DO Load Balancer (prod)"]
