@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: circleguard-do-prod
+  labels:
+    istio-injection: enabled
+    environment: do-prod
+    provider: digitalocean

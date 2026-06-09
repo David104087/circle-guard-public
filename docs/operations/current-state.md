@@ -7,10 +7,7 @@
 ---
 
 ## Última actualización
-2026-05-30 — **PROYECTO FINAL COMPLETO** 🟢 Phases 0–10 completadas. Cierre de 3 huecos de auditoría: (1) 8 dashboards Grafana por servicio en `k8s/monitoring/dashboards/` (cargados vía sidecar + kustomization), (2) métrica de negocio Micrometer en los 8 servicios (antes solo 3), (3) primera release `v0.1.0` con `RELEASE_NOTES_v0.1.0.md` + tag + GitHub Release. Dev cluster running (1 nodo, circleguard-dev). ESO instalado con ClusterSecretStore en dev. Infraestructura: clusters dev y prod RUNNING.
-
-### Métricas de negocio por servicio (8/8)
-`auth_tokens_issued_total` · `analytics_queries_total` · `files_uploaded_total` · `surveys_submitted_total` · `qr_validations_total` · `identities_registered_total` · `notifications_sent_total` · `health_status_changes_total`
+2026-06-08 — **Fin de sesión. Phase 11 (Multi-Cloud) COMPLETA 🟢.** Todos los clusters DO destruidos. GCP prod destruido con `terraform destroy`. Próxima tarea: Phase 13 — FinOps.
 
 ---
 
@@ -18,10 +15,10 @@
 
 | Fase | Estado |
 |------|--------|
-| Phase 0 — Foundation | 🟡 9/10 (0.5 billing alert manual) |
+| Phase 0 — Foundation | 🟡 9/10 |
 | Phase 1 — Terraform | 🟢 COMPLETA |
 | Phase 2 — K8s Migration | 🟢 COMPLETA |
-| Phase 3 — Istio | 🟡 13/14 (3.11 Kiali screenshot manual) |
+| Phase 3 — Istio (Bonus) | 🟡 13/14 (screenshot Kiali pendiente) |
 | Phase 4 — CI/CD | 🟢 COMPLETA |
 | Phase 5 — Patterns | 🟢 COMPLETA |
 | Phase 6 — Testing | 🟢 COMPLETA |
@@ -29,6 +26,9 @@
 | Phase 8 — Security | 🟢 COMPLETA |
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
+| Phase 11 — Multi-Cloud (Bonus) | 🟢 COMPLETA |
+| Phase 12 — Chaos Engineering | 🔴 No iniciada |
+| Phase 13 — FinOps | 🟡 Parcial (tasks 13.1–13.8 pendientes) |
 
 ---
 
@@ -45,48 +45,89 @@
 
 ---
 
-## Infraestructura GCP
+## Infraestructura GCP (estado actual: TODO DESTRUIDO)
 
-**2026-05-31 — TODO APAGADO (fin de sesión).** Costo en GCP ≈ $0.
+**2026-06-08 — TODO APAGADO (fin de sesión).** Costo en GCP ≈ $0.
 
-| Cluster | Estado | Nodos |
+| Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | DESTRUIDO (`terraform destroy -target=module.gke`) | 0 |
-| circleguard-prod | DESTRUIDO (`gcloud container clusters delete`) | 0 |
-| circleguard-stage | no existe | 0 |
+| circleguard-dev | 0 nodos | State existe en GCS — `terraform apply` lo recrea |
+| circleguard-stage | destruido | State limpio |
+| circleguard-prod | **destruido** (`terraform destroy` 2026-06-08) | Zona `us-central1-a` (zonal, no regional — ver Known Issues GCE_STOCKOUT) |
 
-- **0 clusters, 0 VMs, 0 discos persistentes, 0 IPs, 0 load balancers.** Los 19 PVCs huérfanos (~110 GB pd-balanced) se borraron a mano con `gcloud compute disks delete`.
-- Jenkins y SonarQube (Docker) **detenidos**.
-- **Se conservan (costo ~$0):** VPCs dev/prod, Artifact Registry `circleguard` (con imágenes), Secret Manager (`cg-*`), bucket de estado `circle-guard-tfstate-496702`.
+**0 clusters, 0 VMs, 0 discos persistentes activos.**
 
-**Pendientes de estado Terraform para la próxima sesión:**
-- prod: el cluster se borró con gcloud, así que sigue en el state. En el próximo `terraform apply` Terraform lo recrea (o `terraform state rm module.gke.google_container_cluster.cluster` para limpiar).
-- dev: el destroy dejó IAM bindings del node SA en el state (no se pudieron borrar por permisos — ver Known Issues). No afecta costo.
+Para recrear prod desde cero:
+```bash
+cd terraform/envs/prod && terraform apply -auto-approve
+gcloud container clusters get-credentials circleguard-prod --zone=us-central1-a --project=tallerfinal-496702
+```
 
-**QUOTA:** CPUS_ALL_REGIONS=12. Máximo 2 clusters con nodos simultáneamente.
+Para recrear dev:
+```bash
+gcloud container clusters list --project=tallerfinal-496702
+cd terraform/envs/dev && terraform apply -auto-approve
+gcloud container clusters get-credentials circleguard-dev --region=us-central1 --project=tallerfinal-496702
+```
+
+---
+
+## Infraestructura DO (estado actual: DESTRUIDA)
+
+| Cluster | Estado |
+|---------|--------|
+| circleguard-do-dev | Destruido (terraform state vacío) |
+| circleguard-do-stage | Destruido (terraform state vacío) |
+| circleguard-do-prod | Destruido (terraform state vacío) |
+
+Para recrear (necesita DO token):
+```bash
+export TF_VAR_do_token="dop_v1_..."
+for env in do-dev do-stage do-prod; do
+  cd terraform/envs/$env && terraform apply -auto-approve
+  terraform output -raw kube_config > ~/.kube/circleguard-$env
+  cd -
+done
+```
+
+---
+
+## Rama activa
+
+`feat/multi-cloud-bonus` — PR abierto hacia `master`. Phase 11 completa.
+
+---
+
+## Próxima sesión: Phase 13 — FinOps
+
+### Tareas a completar (13.1–13.8)
+
+**13.1 — GCP Billing Export a BigQuery** *(acción manual en consola GCP)*
+- GCP Console → Billing → Billing export → BigQuery export
+- Dataset: `billing_export`, project: `tallerfinal-496702`
+- Tarda 24–48h en acumular datos
+
+**13.2 — Kubecost** *(requiere cluster activo)*
+```bash
+helm repo add kubecost https://kubecost.github.io/cost-analyzer/
+helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace
+```
+
+**13.3 — Dashboard Grafana de costos** — JSON en `k8s/monitoring/dashboards/finops.json`
+
+**13.4 — Automatizar scale-to-zero** — actualizar `ci/session-stop.sh`
+
+**13.5 — Variable spot_node_pool** — añadir a `terraform/modules/gke/`
+
+**13.6 — Auditar resource requests/limits** — verificar todos los Deployments en `k8s/dev/`, `k8s/stage/`, `k8s/production/`
+
+**13.7 — Cost optimization analysis** — actualizar `docs/operations/costs.md`
+
+**13.8 — FinOps strategies doc** — crear `docs/operations/finops.md`
 
 ---
 
 ## Jenkins
 
-- Container: `circleguard-jenkins` — `docker start` para activar
-- URL: http://localhost:8080
-- Password: `0de72cfcad744533ad0b8dca62e9b879`
-- Post-start: `docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
-- Credenciales: dockerhub, github-token, gcp-sa-key, kubeconfig-dev/stage/production, slack-webhook, sonarqube-token
-
-## Kubernetes (dev)
-
-- ESO instalado en `external-secrets` namespace — `SecretSynced: True` para db-password, jwt-secret, mail-credentials
-- kube-prometheus-stack instalado en `monitoring` namespace
-- Namespaces creados: circleguard-dev, circleguard-stage, circleguard-production
-
-## Próximos pasos (para demo)
-
-1. `terraform apply` en dev y prod si clusters están destruidos
-2. Instalar Istio: `istioctl install --set profile=demo -y`
-3. Aplicar manifests: `k8s/00-namespaces.yaml`, `k8s/infrastructure/`, `k8s/dev/`, `k8s/istio/`
-4. Instalar ESO: `helm upgrade --install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace --set installCRDs=true`
-5. Aplicar `k8s/dev/external-secrets/cluster-secret-store.yaml` y `external-secrets.yaml`
-6. Instalar kube-prometheus: `helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f k8s/monitoring/kube-prometheus-values.yaml`
-7. Tomar screenshot de Kiali para task 3.11
+- Container: `circleguard-jenkins` — `docker start circleguard-jenkins && docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
+- URL: http://localhost:8080 | Password: `0de72cfcad744533ad0b8dca62e9b879`

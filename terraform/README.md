@@ -27,13 +27,16 @@ terraform/
 
 ## Remote state
 
-All state stored in GCS: `gs://circle-guard-tfstate-496702/`
+All Terraform state — for **both GCP and DigitalOcean** — is stored centrally in the GCS bucket `gs://circle-guard-tfstate-496702/`. This is intentional: the state file is just an inventory of what exists; the actual resources live in their respective clouds.
 
-| Env   | State prefix   |
-|-------|----------------|
-| dev   | `envs/dev`     |
-| stage | `envs/stage`   |
-| prod  | `envs/prod`    |
+| Env | Provider | State prefix |
+|-----|----------|-------------|
+| dev | GCP (GKE) | `envs/dev` |
+| stage | GCP (GKE) | `envs/stage` |
+| prod | GCP (GKE) | `envs/prod` |
+| do-dev | DigitalOcean (DOKS) | `envs/do-dev` |
+| do-stage | DigitalOcean (DOKS) | `envs/do-stage` |
+| do-prod | DigitalOcean (DOKS) | `envs/do-prod` |
 
 ## Provision a new environment (from scratch)
 

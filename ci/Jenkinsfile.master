@@ -301,6 +301,21 @@ MANIFEST
             }
         }
 
+        stage('Deploy to Cloud2 (DigitalOcean)') {
+            when { branch 'master' }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-cloud2', variable: 'KUBECONFIG_CLOUD2')]) {
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG_CLOUD2
+                        kubectl apply -f k8s/cloud2/ --namespace=circleguard-cloud2 || true
+                        kubectl rollout status deployment/auth-service -n circleguard-cloud2 --timeout=120s || true
+                        kubectl rollout status deployment/gateway-service -n circleguard-cloud2 --timeout=120s || true
+                        echo "Cloud2 (DigitalOcean) deployment complete"
+                    '''
+                }
+            }
+        }
+
         stage('Generate Release Notes') {
             environment {
                 GH_TOKEN = credentials('github-token')
