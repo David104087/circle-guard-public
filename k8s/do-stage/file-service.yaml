@@ -1,0 +1,76 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-service
+  namespace: circleguard-do-stage
+  labels:
+    app: file-service
+    version: "latest"
+    environment: stage
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "25m"
+        sidecar.istio.io/proxyMemory: "64Mi"
+        sidecar.istio.io/proxyMemoryLimit: "96Mi"
+      labels:
+        app: file-service
+    spec:
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: file-service
+          image: davidartunduaga/circleguard-file:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+          livenessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          env:
+            - name: SERVER_PORT
+              value: "8085"
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "25m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+      volumes:
+        - name: uploads
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-service
+  namespace: circleguard-do-stage
+spec:
+  selector:
+    app: file-service
+  ports:
+    - port: 8085
+      targetPort: 8085

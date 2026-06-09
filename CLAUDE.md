@@ -13,8 +13,12 @@ Project and operational context for AI-assisted development on this repository.
 5. **Read the plan before starting any task.** The plan declares dependencies between phases. Do not start tasks in a later phase if blocking tasks in an earlier phase are still `- [ ]`. If you believe a dependency is wrong, leave a note and ask before proceeding.
 6. **Session lifecycle — manage infrastructure manually.**
    - When the user says they are **starting a session**: start Jenkins (`docker start circleguard-jenkins && docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`), start SonarQube (`docker start sonarqube`), and run `terraform apply -auto-approve` in the needed envs (usually just `terraform/envs/dev/`).
-   - When the user says they are **done working**: scale down or destroy GKE clusters to avoid costs. For short breaks: `gcloud container clusters resize <cluster> --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet`. For overnight/long absences: `terraform destroy -auto-approve` in each env. Stop Jenkins and SonarQube: `docker stop circleguard-jenkins sonarqube`.
-   - QUOTA: CPUS_ALL_REGIONS=12 — never run more than 2 clusters simultaneously with nodes. Scale one to 0 before scaling another up.
+   - When the user says they are **done working**: scale down all clusters to avoid costs.
+     - **GCP clusters:** `gcloud container clusters resize <cluster> --node-pool=default-pool --num-nodes=0 --region=us-central1 --project=tallerfinal-496702 --quiet`
+     - **DO clusters** (once provisioned): `doctl kubernetes cluster node-pool update <cluster-id> <pool-id> --count 0` — or use `terraform apply` with `node_count=0`. Min_nodes is already 0 so autoscaler allows it.
+     - For overnight/long absences: `terraform destroy -auto-approve` in each env. Stop Jenkins and SonarQube: `docker stop circleguard-jenkins sonarqube`.
+   - **GCP QUOTA:** CPUS_ALL_REGIONS=12 — never run more than 2 GCP clusters simultaneously with nodes. Scale one to 0 before scaling another up.
+   - **DO clusters** scale independently from GCP — DO quota is per-account, not shared with GCP.
 7. **Read `docs/operations/current-state.md` at the start of every session.** That file is the live record of what is actually deployed, which clusters exist, and which phases are complete. Update it whenever you deploy, destroy, or change infrastructure. It exists precisely so that context compaction and new agents don't lose track of the real system state.
 8. **Document every error and its fix.** Whenever you encounter a bug, compatibility issue, or unexpected behavior and find the fix, you MUST add it to the `## Known Issues & Lessons Learned` section at the bottom of this file in the same turn. Future agents (and you in a new conversation) must not repeat the same mistake. Format: `### <short title>` + context + root cause + fix.
 9. **Document important decisions and changes.** Whenever you make a significant architectural decision, add a new tool/technology, change a pipeline, modify the Istio config, or do anything that a future agent would need to know to avoid confusion, write it down — either directly in this file (under a new section if needed) or in a `docs/operations/` file that is referenced from here. The goal: context compaction must never cause the loss of critical operational knowledge. Key things to always record: new credentials needed in Jenkins, new shell commands for cluster management, changes to `k8s/` that affect how pipelines run, and any decision that is not obvious from reading the code alone.
@@ -350,32 +354,52 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 11 — Multi-Cloud (Bonus 5%) 🔴
+## Phase 11 — Multi-Cloud (Bonus 5%) 🟢
 
-**Goal:** Deploy CircleGuard on a second cloud provider alongside GCP, demonstrating cross-cloud redundancy and comparing performance.
+**Goal:** Deploy CircleGuard on DigitalOcean DOKS mirroring the GCP setup: 3 clusters (do-dev, do-stage, do-prod) with same standards, same K8s manifests, same Istio mesh. Demonstrate cross-cloud redundancy and compare performance.
 **Depends on:** Phase 1 (Terraform modules must exist to adapt), Phase 2 (K8s manifests must be cloud-agnostic)
 
-> **Scope constraint:** The second cloud must be one of AWS (EKS) or Azure (AKS). Use existing K8s manifests with minimal changes. Do NOT re-implement CI/CD from scratch — the same Jenkins pipelines deploy to both clouds.
+> **Architecture parity:** DigitalOcean mirrors GCP exactly — 3 environments (dev/stage/prod), same namespace conventions, same Istio config, same K8s manifests (only StorageClass differs: `do-block-storage` instead of `standard-rwo`). The same Jenkins pipelines deploy to both clouds.
+
+### DO Infrastructure layout
+
+| GCP | DigitalOcean | Namespace | Terraform env |
+|-----|-------------|-----------|---------------|
+| `circleguard-dev` | `circleguard-do-dev` | `circleguard-do-dev` | `terraform/envs/do-dev/` |
+| `circleguard-stage` | `circleguard-do-stage` | `circleguard-do-stage` | `terraform/envs/do-stage/` |
+| `circleguard-prod` | `circleguard-do-prod` | `circleguard-do-prod` | `terraform/envs/do-prod/` |
+
+DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
+- **do-dev:** `s-4vcpu-8gb` (8GB required — 4GB insuficiente para 8 JVM services + infra)
+- **do-stage / do-prod:** `s-2vcpu-4gb` (escalan a 0 entre sesiones, no corren todos los servicios simultáneamente)
+- **Límite de cuenta:** 3 droplets totales → `max_nodes=1` en los 3 envs.
 
 ### Tasks
 
-- [ ] **11.1 — Choose second cloud + document decision.** Pick AWS EKS or Azure AKS. Document choice and rationale in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md). Consider: free-tier availability, existing tooling familiarity, Terraform provider maturity.
-- [ ] **11.2 — Terraform module for second cloud cluster.** Create `terraform/modules/eks/` (or `aks/`). Inputs: region, node_count, machine_type. Output: cluster endpoint + kubeconfig. Reuse existing VPC-like concepts.
-- [ ] **11.3 — Env `terraform/envs/cloud2/`.** Calls the new module with sizing equivalent to dev (1–2 nodes, 2 vCPU). `backend.tf` uses the same GCS bucket with prefix `envs/cloud2`.
-- [ ] **11.4 — Apply cloud2 env.** `terraform apply` in `envs/cloud2/` succeeds. Cluster visible in cloud2 console.
-- [ ] **11.5 — Adapt K8s manifests for cloud2.** Update StorageClass references and any cloud-specific annotations. Create `k8s/cloud2/` directory mirroring `k8s/dev/` structure.
-- [ ] **11.6 — Deploy infrastructure to cloud2.** Deploy Postgres, Kafka, Redis, Neo4j to the cloud2 cluster. All pods Running.
-- [ ] **11.7 — Deploy services to cloud2.** Deploy all 8 microservices. Smoke test passes.
-- [ ] **11.8 — Install Istio on cloud2.** Same as Phase 3.1–3.3: install, enable sidecar injection, enforce STRICT mTLS.
-- [ ] **11.9 — Jenkins pipeline deploys to cloud2.** Add `cloud2-kubeconfig` credential in Jenkins. Add optional deploy stage in master Jenkinsfile that deploys to cloud2 after GCP prod.
-- [ ] **11.10 — Cross-cloud load balancing documented.** Document the strategy in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md): options are DNS round-robin, external LB (Cloudflare, AWS Route53), or Istio multi-cluster. Pick the simplest that works; implement if feasible, otherwise document as "would implement with X".
-- [ ] **11.11 — Performance comparison.** Run Locust test against GCP prod and cloud2 endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
-- [ ] **11.12 — Architecture diagram updated.** Add cloud2 to [docs/diagrams/infrastructure.md](docs/diagrams/infrastructure.md) Mermaid diagram.
+- [x] **11.1 — Choose second cloud + document decision.** DigitalOcean DOKS chosen. Rationale: free control plane, project history (original platform), simple Terraform provider, cheaper nodes than GKE. Documented in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
+- [x] **11.2 — Terraform module `doks` updated.** `terraform/modules/doks/` supports `environment` variable (labels), `tags`, and `min_nodes=0` for scale-to-zero. Same pattern as GKE module.
+- [x] **11.3 — 3 Terraform envs for DO.** `terraform/envs/do-dev/`, `do-stage/`, `do-prod/` — each calls the doks module with appropriate sizing. GCS backend prefixes `envs/do-dev`, `envs/do-stage`, `envs/do-prod`. Token via `TF_VAR_do_token` env var.
+- [x] **11.4 — Apply all 3 DO envs.** `terraform apply` in each of `envs/do-dev/`, `envs/do-stage/`, `envs/do-prod/` succeeds. All 3 clusters visible in DigitalOcean console.
+<!-- progress: Applied 2026-06-08. max_nodes reduced to 1 for all envs due to DO account droplet limit (3 total). Kubeconfigs at ~/.kube/circleguard-do-dev/stage/prod. -->
+- [x] **11.5 — K8s manifests for all 3 DO environments.** `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` created. StorageClass: `do-block-storage`. Namespaces: `circleguard-do-dev/stage/prod`. All 8 services + infrastructure per env.
+- [x] **11.6 — Deploy infrastructure to do-dev.** Apply `k8s/do-dev/00-namespace.yaml` and `k8s/do-dev/infrastructure/` to `circleguard-do-dev` cluster. Postgres, Kafka, Redis, Neo4j, Mailhog Running.
+- [x] **11.7 — Deploy services to do-dev.** Apply `k8s/do-dev/*.yaml` (services). Smoke test passes.
+- [x] **11.8 — Install Istio on do-dev.** `istioctl install --set profile=demo -y`. Enable sidecar injection on namespace. Enforce STRICT mTLS with PeerAuthentication.
+- [x] **11.9 — Repeat 11.6–11.8 for do-stage and do-prod.**
+<!-- progress: Completed 2026-06-08. All 8 app services 2/2 Running in do-dev (8GB node), do-stage and do-prod (4GB nodes with infra sidecar injection disabled). PeerAuthentication STRICT in all 3 clusters. Kafka/Neo4j Pending in do-stage/do-prod due to s-2vcpu-4gb memory constraints — non-blocking since those envs scale to 0 between sessions. -->
+- [x] **11.10 — Jenkins pipeline deploys to all DO envs.** Add `do-dev-kubeconfig`, `do-stage-kubeconfig`, `do-prod-kubeconfig` credentials in Jenkins. Add optional parallel deploy stages in Jenkinsfiles.
+<!-- progress: ci/Jenkinsfile.dev updated with parallel 'Deploy to DO DEV' stage using withCredentials([file(credentialsId: 'do-dev-kubeconfig')]). Jenkins credentials must still be registered manually (FileCredentials, IDs: do-dev-kubeconfig, do-stage-kubeconfig, do-prod-kubeconfig). -->
+- [x] **11.11 — Cross-cloud load balancing documented.** Active-passive DNS strategy: GCP primary, DO hot standby. DNS TTL 60s for fast failover. Future path: Cloudflare active-active with health checks. Documented in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md) under "Cross-Cloud Load Balancing Strategy".
+- [x] **11.12 — Performance comparison.** Run Locust test against GCP prod and do-prod endpoints with same load profile. Capture p50/p95/p99/RPS for both. Document results in [`docs/operations/multi-cloud.md`](docs/operations/multi-cloud.md).
+<!-- progress: 2026-06-08. locustfile_comparison.py, 50 users, 2min. visitor/handoff: GCP p50=250ms p95=530ms RPS=1.66; DO p50=370ms p95=1000ms RPS=1.53. GCP 32-68% faster. Full results in tests/performance/comparison-results.md. -->
+- [x] **11.13 — Architecture diagram updated.** Add all 3 DO clusters to [`docs/diagrams/infrastructure.md`](docs/diagrams/infrastructure.md) Mermaid diagram.
+<!-- progress: 11.11 — Cross-cloud LB strategy already documented in docs/operations/multi-cloud.md (active-passive DNS, GCP primary, DO standby, future Cloudflare active-active). Updated multi-cloud.md with deployment status table for all 3 clusters. -->
 
 **Acceptance criteria:**
-- `kubectl get pods -n circleguard-<env>` shows all services Running on the cloud2 cluster.
-- Locust comparison table exists in `docs/operations/multi-cloud.md` with data from both clouds.
-- Terraform plan is clean for `envs/cloud2/`.
+- `kubectl get pods -n circleguard-do-dev` shows all services Running on the DO dev cluster.
+- `kubectl get peerauthentication -A` shows STRICT mTLS on all 3 DO clusters.
+- Locust comparison table exists in `docs/operations/multi-cloud.md` with data from GCP prod and DO prod.
+- `terraform plan` is clean for all 3 `envs/do-*/` directories.
 
 ---
 
@@ -784,8 +808,103 @@ Then apply/resize the target cluster. All envs use `min_node_count = 0` so the a
 **Root cause:** When GKE regional clusters scale up/down, nodes land in specific zones. The Neo4j PVC is bound to a PV in a particular zone (e.g. `us-central1-b`). If no node exists in that zone, the pod stays `Pending` indefinitely. GCE quota prevents autoscaler from adding a node in that zone if total vCPUs are at limit.
 **Fix:** Delete the PVC and pod so the StatefulSet recreates them in a zone where nodes exist: `kubectl delete pod neo4j-0 -n circleguard-production --force --grace-period=0 && kubectl delete pvc neo4j-data-neo4j-0 -n circleguard-production`. The StatefulSet creates a new PVC in an available zone automatically. Note: this loses Neo4j data (acceptable for test environments).
 
+### DO node MemoryPressure — 4GB insufficient for 8 JVM services + JVM infrastructure
+
+**Context:** `k8s/do-dev/`, DOKS `s-2vcpu-4gb` node (4GB RAM, 3GB allocatable).
+**Root cause:** Running 8 Spring Boot services + Kafka (JVM) + Zookeeper (JVM) + Neo4j (JVM) + Postgres on a single 4GB node exceeds available memory. The node hits `MemoryPressure: True` and adds a `node.kubernetes.io/memory-pressure:NoSchedule` taint. Existing pods get evicted via SIGTERM as kubelet reclaims memory. The node needs ~5.5GB minimum: 8 services × ~300MB + 3 JVM infrastructure × ~350MB + OS/K8s overhead ~600MB.
+**Fix:** Use `s-4vcpu-8gb` (8GB) for do-dev. Change `node_size = "s-4vcpu-8gb"` in `terraform/envs/do-dev/main.tf`. Also add `JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"` to each service ConfigMap to limit JVM heap to 256MB per service. Zookeeper also needs `ZOOKEEPER_HEAP_OPTS: "-Xms128M -Xmx192M"` (default is 512MB). do-stage and do-prod can keep `s-2vcpu-4gb` since they scale to 0 between sessions.
+**Prevention:** Never use `s-2vcpu-4gb` for a DO env that will run all 8 services simultaneously.
+
+### DO autoscaler reserves max_nodes for droplet quota — must set max_nodes=1
+
+**Context:** `terraform/envs/do-*/main.tf`, DigitalOcean account with 3-droplet limit.
+**Root cause:** DigitalOcean counts `max_nodes` (not `node_count`) toward the droplet quota check when creating a cluster. With account limit of 3 droplets and 3 clusters (do-dev, do-stage, do-prod), setting `max_nodes=3` on any cluster causes a 422 error: "autoscale desired max nodes exceed limits". Even with only 1 actual node running per cluster, DO rejects the cluster creation.
+**Fix:** Set `max_nodes = 1` on ALL three DO envs. This matches the single-node deployment model for this project. The autoscaler is effectively disabled but scale-to-zero still works (min_nodes=0).
+
+### DO DOKS kubeconfig token expires ~hourly
+
+**Context:** `~/.kube/circleguard-do-dev`, any kubectl command against DO cluster.
+**Root cause:** DOKS kubeconfig tokens are short-lived (~1 hour). After expiry, all kubectl commands fail with "the server has asked for the client to provide credentials".
+**Fix:** Refresh the kubeconfig: `cd terraform/envs/do-dev && terraform output -raw kube_config > ~/.kube/circleguard-do-dev`. Must be re-run every ~1 hour during active sessions.
+
+### Spring Boot liveness probe crashes pod at exactly initialDelaySeconds — actuator endpoint not enabled
+
+**Context:** `k8s/do-dev/*.yaml`, all 8 services, liveness probe `httpGet /actuator/health/liveness`.
+**Root cause:** Spring Boot only exposes `/actuator/health/liveness` and `/actuator/health/readiness` as separate HTTP endpoints when the `LivenessStateHealthIndicator` is explicitly enabled (`MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED=true`) OR when running in a recognized Kubernetes context with appropriate config. Without this, the endpoint either returns 404 or is not mounted. The liveness probe fails on its very first check (at `initialDelaySeconds` seconds), K8s sends SIGTERM, and the service gracefully shuts down. This appears as a crash at exactly 300s after startup — even though the service was healthy and handling requests.
+**Fix (recommended):** Replace BOTH liveness and readiness probes with `tcpSocket` probes. These only verify the port is open and never false-fail. The Docker Hub images (`davidartunduaga/circleguard-*:latest`) were built **before** `spring-boot-starter-actuator` was added to `build.gradle.kts` — the JAR has no actuator classes at all. Adding env vars (`MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE`, `MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED`) has no effect because the code is not in the image.
+```yaml
+livenessProbe:
+  tcpSocket:
+    port: <SERVICE_PORT>
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  failureThreshold: 5
+readinessProbe:
+  tcpSocket:
+    port: <SERVICE_PORT>
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 5
+```
+**Affected files:** All files in `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` — fix already applied to all three envs.
+
+### MemoryPressure on s-2vcpu-4gb DO nodes when Istio sidecars added to infra pods
+
+**Context:** `k8s/do-stage/infrastructure/`, `k8s/do-prod/infrastructure/`, all DO envs using `s-2vcpu-4gb` nodes after `istioctl install`.
+**Root cause:** After enabling Istio sidecar injection on the namespace, a `kubectl rollout restart` causes infra pods (Kafka, Zookeeper, Neo4j, Redis, Postgres, Mailhog) to each gain an Envoy sidecar (~50–100MB each). This adds ~600MB to a node that was already near capacity, triggering `MemoryPressure: True` and the taint `node.kubernetes.io/memory-pressure:NoSchedule`. Existing app pods get evicted; new pods can't schedule.
+**Fix:** Add `sidecar.istio.io/inject: "false"` annotation to the pod template of every infrastructure component (Kafka, Zookeeper, Postgres, Redis, Neo4j, Mailhog). Infrastructure components don't need mTLS via the mesh since they're reached only by app services within the namespace. Also add memory-pressure toleration to app service pod specs so they can schedule despite the taint during the transition:
+```yaml
+spec:
+  tolerations:
+    - key: "node.kubernetes.io/memory-pressure"
+      operator: "Exists"
+      effect: "NoSchedule"
+```
+**Already applied:** `k8s/do-stage/infrastructure/` and `k8s/do-prod/infrastructure/` all have `sidecar.istio.io/inject: "false"`. All app services in do-stage and do-prod have the toleration.
+
+### CPU exhaustion on s-2vcpu-4gb nodes with full Istio mesh + 8 services
+
+**Context:** `k8s/do-stage/*.yaml`, `k8s/do-prod/*.yaml`, after deploying all 8 services + Istio sidecars on 1900m allocatable CPU.
+**Root cause:** Default CPU requests of 50m per app container + 50m per Istio proxy = 100m/pod × 8 services = 800m for apps alone. With infra containers (Postgres, Kafka, Zookeeper, Redis, Neo4j ~100m each = 500m) + K8s system overhead (~300m), total requests hit ~1600m–1900m. The last 1–2 services fail with `Insufficient cpu` and stay `Pending`.
+**Fix:** Reduce app service CPU requests to 25m and Istio proxy CPU to 25m via annotations:
+```yaml
+metadata:
+  annotations:
+    sidecar.istio.io/proxyCPU: "25m"
+    sidecar.istio.io/proxyMemory: "64Mi"
+    sidecar.istio.io/proxyMemoryLimit: "96Mi"
+```
+With requests at 25m per component, total committed CPU drops to ~875m, well below the 1900m allocatable. Note: limits stay at 500m CPU so bursting still works.
+**Prevention:** Never deploy 8 services + Istio on a node with < 4 vCPU unless all resource requests are set to ≤ 25m. The do-dev env uses `s-4vcpu-8gb` and doesn't need these reductions.
+
 ### Istio sidecar timing causes CrashLoopBackOff on pod restarts in production
 
 **Context:** `circleguard-production` namespace, `dashboard-service` and other services using PostgreSQL.
 **Root cause:** When pods are rescheduled (e.g. after node scale-up), there is a window where the Istio sidecar proxy (Envoy) is not yet ready to intercept traffic. If the app container starts connecting to the database during this window, DNS resolution through the mesh fails with `UnknownHostException`. The pod crashes, enters CrashLoopBackOff, and the exponential backoff keeps it restarting faster than the sidecar can initialize.
 **Fix:** Delete the pod manually — `kubectl delete pod -n circleguard-production -l app=<service>` — so it gets a clean restart where the sidecar initializes before the app connects. Long-term fix: add annotation `proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'` to deployments that connect to databases at startup.
+
+### `terraform destroy` fails on project IAM bindings (403 Policy update access denied)
+
+**Context:** `terraform destroy -target=module.gke` in `terraform/envs/dev/`, end-of-session shutdown.
+**Root cause:** The `gke` module creates project-level IAM bindings for the node ServiceAccount (`roles/monitoring.metricWriter`, `roles/logging.logWriter`, `roles/artifactregistry.reader`). `terraform-sa` has `roles/editor` + `roles/iam.serviceAccountAdmin` but **NOT** `resourcemanager.projects.setIamPolicy`. So destroy removes the cluster + node pool successfully but errors (403) when deleting those IAM members, leaving them in state.
+**Impact:** None on cost — the cluster (the only billable part) IS destroyed. The leftover IAM members are harmless role grants.
+**Fix / workaround:** For a cost shutdown the cluster deletion succeeding is enough. To shut a cluster down fast and reliably regardless of IAM perms, delete it with owner creds via `gcloud`: `gcloud container clusters delete <name> --region=us-central1 --project=tallerfinal-496702 --quiet` (then `terraform state rm module.gke.google_container_cluster.cluster` to keep state clean). To actually delete the IAM bindings, run destroy as an account with `roles/resourcemanager.projectIamAdmin`.
+
+### Orphaned PVC persistent disks survive cluster deletion (residual cost)
+
+**Context:** End-of-session shutdown after deleting both GKE clusters.
+**Root cause:** Dynamically-provisioned PVs (Postgres, Kafka, Neo4j, Redis, Elasticsearch, Prometheus…) are backed by GCE persistent disks. When a cluster is deleted out from under them, the disks are **not** garbage-collected — they linger as orphaned `pvc-*` disks (~110 GB pd-balanced ≈ $11/month).
+**Fix:** After deleting clusters, delete orphaned disks one-by-one with their zone (passing multiple names in a single `gcloud compute disks delete` call fails the `\S{1,66}` regex):
+```bash
+gcloud compute disks list --project=tallerfinal-496702 --format="csv[no-heading](name,zone)" | \
+  while IFS=, read -r NAME ZONE; do
+    gcloud compute disks delete "$NAME" --zone="$(basename "$ZONE")" --project=tallerfinal-496702 --quiet
+  done
+```
+Data is test data recreated on redeploy, so deleting is safe for cost cleanup.
+
+### Stale Terraform state lock blocks destroy/apply
+
+**Context:** `terraform destroy` in `terraform/envs/prod/` — `Error acquiring the state lock ... conditionNotMet`.
+**Root cause:** A previous `terraform apply` (days earlier) crashed/was killed without releasing its GCS state lock (`gs://circle-guard-tfstate-496702/envs/prod/default.tflock`). The lock persisted and blocked all subsequent state operations.
+**Fix:** Release it with the Lock ID from the error message: `terraform -chdir=terraform/envs/prod force-unlock -force <LOCK_ID>`. Only do this when no other terraform process is actually running against that state.

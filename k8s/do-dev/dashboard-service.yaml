@@ -1,0 +1,87 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-service-config
+  namespace: circleguard-do-dev
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/circleguard_dashboard"
+  SPRING_DATASOURCE_USERNAME: "admin"
+  CIRCLEGUARD_PROMOTION-SERVICE_URL: "http://promotion-service:8088"
+  SERVER_PORT: "8084"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+  JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseContainerSupport"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dashboard-service-secret
+  namespace: circleguard-do-dev
+type: Opaque
+stringData:
+  SPRING_DATASOURCE_PASSWORD: "password"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-service
+  namespace: circleguard-do-dev
+  labels:
+    app: dashboard-service
+    version: "latest"
+    environment: dev
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard-service
+  template:
+    metadata:
+      labels:
+        app: dashboard-service
+    spec:
+      containers:
+        - name: dashboard-service
+          image: davidartunduaga/circleguard-dashboard:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8084
+          livenessProbe:
+            tcpSocket:
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            tcpSocket:
+              port: 8084
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          envFrom:
+            - configMapRef:
+                name: dashboard-service-config
+            - secretRef:
+                name: dashboard-service-secret
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-service
+  namespace: circleguard-do-dev
+spec:
+  selector:
+    app: dashboard-service
+  ports:
+    - port: 8084
+      targetPort: 8084

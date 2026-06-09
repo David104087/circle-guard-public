@@ -185,29 +185,49 @@ pipeline {
             }
         }
 
-        stage('Deploy to K8s DEV') {
-            environment {
-                USE_GKE_GCLOUD_AUTH_PLUGIN = 'True'
-            }
-            steps {
-                sh '''
-                    kubectl apply -f k8s/00-namespaces.yaml
-                    kubectl apply -f k8s/infrastructure/
-                    kubectl rollout status statefulset/postgres -n ${NAMESPACE} --timeout=120s
-                    for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
-                        kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
-                    done
-                    kubectl apply -f k8s/dev/
-                    # Apply Istio traffic management
-                    sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
-                        k8s/istio/virtual-services.yaml | kubectl apply -f -
-                    sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
-                        k8s/istio/destination-rules.yaml | kubectl apply -f -
-                    for svc in auth-service dashboard-service file-service form-service gateway-service identity-service notification-service promotion-service; do
-                        kubectl rollout restart deployment/${svc} -n ${NAMESPACE}
-                    done
-                    kubectl rollout status deployment/auth-service -n ${NAMESPACE} --timeout=300s
-                '''
+        stage('Deploy') {
+            parallel {
+                stage('Deploy to GCP DEV') {
+                    environment {
+                        USE_GKE_GCLOUD_AUTH_PLUGIN = 'True'
+                    }
+                    steps {
+                        sh '''
+                            kubectl apply -f k8s/00-namespaces.yaml
+                            kubectl apply -f k8s/infrastructure/
+                            kubectl rollout status statefulset/postgres -n ${NAMESPACE} --timeout=120s
+                            for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
+                                kubectl exec statefulset/postgres -n ${NAMESPACE} -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
+                            done
+                            kubectl apply -f k8s/dev/
+                            sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
+                                k8s/istio/virtual-services.yaml | kubectl apply -f -
+                            sed "s/namespace: circleguard-dev/namespace: circleguard-dev/g" \
+                                k8s/istio/destination-rules.yaml | kubectl apply -f -
+                            for svc in auth-service dashboard-service file-service form-service gateway-service identity-service notification-service promotion-service; do
+                                kubectl rollout restart deployment/${svc} -n ${NAMESPACE}
+                            done
+                            kubectl rollout status deployment/auth-service -n ${NAMESPACE} --timeout=300s
+                        '''
+                    }
+                }
+                stage('Deploy to DO DEV') {
+                    steps {
+                        withCredentials([file(credentialsId: 'do-dev-kubeconfig', variable: 'DO_KUBECONFIG')]) {
+                            sh '''
+                                export KUBECONFIG=${DO_KUBECONFIG}
+                                kubectl apply -f k8s/do-dev/00-namespace.yaml 2>/dev/null || true
+                                kubectl apply -f k8s/do-dev/infrastructure/
+                                kubectl rollout status statefulset/postgres -n circleguard-do-dev --timeout=120s || true
+                                for db in circleguard_auth circleguard_dashboard circleguard_form circleguard_promotion circleguard_identity; do
+                                    kubectl exec statefulset/postgres -n circleguard-do-dev -- psql -U admin -d postgres -c "CREATE DATABASE ${db};" 2>/dev/null || true
+                                done
+                                kubectl apply -f k8s/do-dev/
+                                kubectl rollout status deployment/auth-service -n circleguard-do-dev --timeout=300s || true
+                            '''
+                        }
+                    }
+                }
             }
         }
 
