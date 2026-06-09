@@ -436,7 +436,7 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 
 ---
 
-## Phase 13 — FinOps (Bonus 5%) 🟡 <!-- 6/8 tasks done; 13.1 manual GCP console; 13.2 needs cluster -->
+## Phase 13 — FinOps (Bonus 5%) 🟡 <!-- 7/8 tasks done; only 13.2 (Kubecost install) pending — needs active cluster -->
 
 **Goal:** Implement real cost monitoring, automated savings policies, cost dashboards, and a documented optimization analysis.
 **Depends on:** Phase 1 (Terraform + GCP infra), Phase 7 (Grafana already running)

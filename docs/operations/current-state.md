@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-08 — **Fin de sesión. Phase 11 (Multi-Cloud) COMPLETA 🟢.** Todos los clusters DO destruidos. GCP prod destruido con `terraform destroy`. Próxima tarea: Phase 13 — FinOps.
+2026-06-09 — **Inicio de sesión. Phase 13 (FinOps).** 7 de 8 tareas ya completas en sesión anterior. Pendiente: 13.2 (Kubecost install — requiere cluster activo). `session-stop.sh` actualizado para manejar clusters DO.
 
 ---
 
@@ -28,7 +28,7 @@
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
 | Phase 11 — Multi-Cloud (Bonus) | 🟢 COMPLETA |
 | Phase 12 — Chaos Engineering | 🔴 No iniciada |
-| Phase 13 — FinOps | 🟡 Parcial (tasks 13.1–13.8 pendientes) |
+| Phase 13 — FinOps | 🟡 7/8 (solo 13.2 Kubecost pendiente — necesita cluster) |
 
 ---
 
@@ -98,32 +98,38 @@ done
 
 ---
 
-## Próxima sesión: Phase 13 — FinOps
+## Sesión actual: Phase 13 — FinOps
 
-### Tareas a completar (13.1–13.8)
+### Estado de tareas
 
-**13.1 — GCP Billing Export a BigQuery** *(acción manual en consola GCP)*
-- GCP Console → Billing → Billing export → BigQuery export
-- Dataset: `billing_export`, project: `tallerfinal-496702`
-- Tarda 24–48h en acumular datos
+| Tarea | Estado | Notas |
+|-------|--------|-------|
+| 13.1 — GCP Billing Export | ✅ COMPLETA | BigQuery export activo, screenshots en docs/diagrams/finops/ |
+| 13.2 — Kubecost installed | ⏳ PENDIENTE | kubecost-values.yaml listo; ejecutar cuando cluster activo |
+| 13.3 — Grafana FinOps dashboard | ✅ COMPLETA | k8s/monitoring/dashboards/finops.json |
+| 13.4 — Scale-to-zero automatizado | ✅ COMPLETA | ci/session-stop.sh (GCP + DO) |
+| 13.5 — Spot VMs configurados | ✅ COMPLETA | dev+stage use_spot=true, prod=false |
+| 13.6 — Resource requests/limits | ✅ COMPLETA | 8 servicios en dev/stage/production auditados |
+| 13.7 — Cost optimization analysis | ✅ COMPLETA | docs/operations/costs.md actualizado |
+| 13.8 — FinOps strategies doc | ✅ COMPLETA | docs/operations/finops.md con 6 estrategias |
 
-**13.2 — Kubecost** *(requiere cluster activo)*
+### Paso pendiente (requiere cluster activo)
+
+**13.2 — Instalar Kubecost:**
 ```bash
-helm repo add kubecost https://kubecost.github.io/cost-analyzer/
-helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace
+# Levantar dev cluster primero:
+cd terraform/envs/dev && terraform apply -auto-approve
+gcloud container clusters get-credentials circleguard-dev --region=us-central1 --project=tallerfinal-496702
+
+# Instalar Kubecost:
+helm repo add kubecost https://kubecost.github.io/cost-analyzer/ && helm repo update
+helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace \
+  -f k8s/monitoring/kubecost-values.yaml
+
+# Verificar:
+kubectl get pods -n kubecost
+kubectl port-forward -n kubecost svc/kubecost-cost-analyzer 9090:9090
 ```
-
-**13.3 — Dashboard Grafana de costos** — JSON en `k8s/monitoring/dashboards/finops.json`
-
-**13.4 — Automatizar scale-to-zero** — actualizar `ci/session-stop.sh`
-
-**13.5 — Variable spot_node_pool** — añadir a `terraform/modules/gke/`
-
-**13.6 — Auditar resource requests/limits** — verificar todos los Deployments en `k8s/dev/`, `k8s/stage/`, `k8s/production/`
-
-**13.7 — Cost optimization analysis** — actualizar `docs/operations/costs.md`
-
-**13.8 — FinOps strategies doc** — crear `docs/operations/finops.md`
 
 ---
 
