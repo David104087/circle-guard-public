@@ -38,7 +38,7 @@ Project and operational context for AI-assisted development on this repository.
 - ✅ **Service Mesh (Istio)** — already implemented in Phase 3
 - 🔴 **Multi-Cloud** — Phase 11 (see below)
 - 🔴 **Chaos Engineering** — Phase 12 (see below)
-- 🟡 **FinOps** — Phase 13 (see below; cost doc exists, tooling needed)
+- ✅ **FinOps** — Phase 13 COMPLETA (Kubecost, Grafana dashboard, spot VMs, scale-to-zero, cost analysis)
 
 CircleGuard is a university health-monitoring platform. Eight microservices communicate via Kafka and REST. Six have published Docker Hub images; `gateway-service` and `identity-service` images are built and pushed in Phase 4 CI/CD.
 
@@ -436,7 +436,7 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 
 ---
 
-## Phase 13 — FinOps (Bonus 5%) 🟡 <!-- 7/8 tasks done; only 13.2 (Kubecost install) pending — needs active cluster -->
+## Phase 13 — FinOps (Bonus 5%) 🟢
 
 **Goal:** Implement real cost monitoring, automated savings policies, cost dashboards, and a documented optimization analysis.
 **Depends on:** Phase 1 (Terraform + GCP infra), Phase 7 (Grafana already running)
@@ -446,7 +446,7 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 ### Tasks
 
 - [x] **13.1 — GCP billing export to BigQuery.** Both "Costo de uso estándar" and "Costo de uso detallado" enabled. Dataset: `billing_export` in project `tallerfinal-496702` (region US). Evidence: [`docs/diagrams/finops/costo_uso_estandar.png`](docs/diagrams/finops/costo_uso_estandar.png) and [`docs/diagrams/finops/costo_uso_detallado.png`](docs/diagrams/finops/costo_uso_detallado.png).
-- [ ] **13.2 — Kubecost installed.** `helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace`. Verify UI accessible via `kubectl port-forward`. Shows per-namespace/per-pod cost breakdown.
+- [x] **13.2 — Kubecost installed.** Installed v2.8.6 (not 2.9.x — migration-only version). UI accessible via `kubectl port-forward --namespace kubecost deployment/kubecost-cost-analyzer 9090`. Shows per-namespace/per-pod cost breakdown. Values in `k8s/monitoring/kubecost-values.yaml`.
 <!-- progress: Helm values ready at k8s/monitoring/kubecost-values.yaml. Configured to use existing kube-prometheus-stack. Run helm install when dev cluster is up. -->
 - [x] **13.3 — Grafana cost dashboard.** Add a Grafana dashboard sourcing Kubecost metrics showing: daily cost by namespace, cost by service, cost trend over 7 days. JSON saved to [`k8s/monitoring/dashboards/finops.json`](k8s/monitoring/dashboards/finops.json).
 - [x] **13.4 — Scale-to-zero policy automated.** `ci/session-stop.sh` scales all clusters to 0 nodes in parallel. `ci/session-start.sh` scales dev back up. `terraform/modules/gke/` already has `min_node_count = 0`.
@@ -908,3 +908,31 @@ Data is test data recreated on redeploy, so deleting is safe for cost cleanup.
 **Context:** `terraform destroy` in `terraform/envs/prod/` — `Error acquiring the state lock ... conditionNotMet`.
 **Root cause:** A previous `terraform apply` (days earlier) crashed/was killed without releasing its GCS state lock (`gs://circle-guard-tfstate-496702/envs/prod/default.tflock`). The lock persisted and blocked all subsequent state operations.
 **Fix:** Release it with the Lock ID from the error message: `terraform -chdir=terraform/envs/prod force-unlock -force <LOCK_ID>`. Only do this when no other terraform process is actually running against that state.
+
+### GCE_STOCKOUT in us-central1-c forces dev cluster to zonal (us-central1-a)
+
+**Context:** `terraform/envs/dev/`, `terraform apply` for `circleguard-dev` regional cluster, 2026-06-09.
+**Root cause:** GCP zone `us-central1-c` had no e2-standard-2 capacity available. A regional GKE cluster with `location = "us-central1"` tries to place 1 node per zone (a/b/c). When us-central1-c is out of stock, the cluster enters ERROR state and the API becomes unreachable (control plane also fails). The `INVALID_STATE_FOR_UPDATE` error prevents any resize until the cluster exits the repair loop.
+**Fix:** 
+1. Delete the cluster: `gcloud container clusters delete circleguard-dev --region=us-central1 --project=tallerfinal-496702 --quiet`
+2. Remove from state: `terraform state rm "module.gke.google_container_cluster.cluster"`
+3. Change `terraform/envs/dev/main.tf`: `region = "us-central1-a"` (zonal, not regional)
+4. If the GKE nodes SA still exists in GCP but not in state: `terraform import module.gke.google_service_account.gke_nodes projects/PROJECT/serviceAccounts/cg-gke-ev@PROJECT.iam.gserviceaccount.com`
+5. Re-run `terraform apply`
+**Result:** Dev cluster is now zonal (`us-central1-a`) matching prod. Single node, faster apply, no cross-zone stockout risk.
+**Note:** Zonal clusters have 1 node total (not 1/zone), so CPUS_ALL_REGIONS quota usage drops from 6 vCPUs to 2 vCPUs per cluster.
+
+### Kubecost 2.9.x is a migration-only version — install 2.8.x instead
+
+**Context:** `helm install kubecost kubecost/cost-analyzer` (latest), Phase 13 task 13.2.
+**Root cause:** Kubecost 2.9.x is intentionally designed as a migration stepping stone to 3.0. Installing it directly fails with: `"Kubecost 2.9.x is only used for preparing agents to upgrade to 3.0"`. Additionally, 2.9.x requires `global.clusterId` which earlier docs didn't include.
+**Fix:** Pin to version 2.8.6 (latest stable before migration series):
+```bash
+helm install kubecost kubecost/cost-analyzer --version 2.8.6 \
+  -n kubecost --create-namespace \
+  --set global.clusterId=circleguard-dev \
+  --set kubecostProductConfigs.clusterName=circleguard-dev \
+  --set kubecostProductConfigs.currencyCode=USD \
+  --set networkCosts.enabled=false \
+  --wait --timeout=6m
+```

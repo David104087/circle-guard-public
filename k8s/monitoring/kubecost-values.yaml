@@ -1,28 +1,29 @@
 # Kubecost Helm values for CircleGuard
-# Install: helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace -f k8s/monitoring/kubecost-values.yaml
-# Access UI: kubectl port-forward -n kubecost svc/kubecost-cost-analyzer 9090:9090
+# Tested version: 2.8.6 (2.9.x is a migration-only version — do not use)
+#
+# Install command:
+#   helm repo add kubecost https://kubecost.github.io/cost-analyzer/ && helm repo update
+#   helm install kubecost kubecost/cost-analyzer --version 2.8.6 \
+#     -n kubecost --create-namespace \
+#     --set global.clusterId=circleguard-dev \
+#     --set kubecostProductConfigs.clusterName=circleguard-dev \
+#     --set kubecostProductConfigs.currencyCode=USD \
+#     --set networkCosts.enabled=false \
+#     --wait --timeout=6m
+#
+# Access UI:
+#   kubectl port-forward --namespace kubecost deployment/kubecost-cost-analyzer 9090
+#   Open: http://localhost:9090  (allow ~25 min for initial metrics collection)
 
 global:
+  clusterId: circleguard-dev
+
   prometheus:
-    # Use the existing kube-prometheus-stack Prometheus instead of installing a new one
-    fqdn: http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090
-    enabled: false  # don't install Kubecost's own Prometheus
+    # Kubecost bundles its own Prometheus when the monitoring stack isn't pre-deployed
+    enabled: true
 
   grafana:
-    # Use the existing Grafana from kube-prometheus-stack
-    fqdn: http://kube-prometheus-grafana.monitoring.svc.cluster.local
-    enabled: false  # don't install Kubecost's own Grafana
-    proxy: false
-
-# Kubecost Cost Analyzer
-costAnalyzer:
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "256Mi"
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
+    enabled: false   # Kubecost ships its own Grafana; set true to disable and use existing
 
 # GCP billing integration (requires billing export to BigQuery — see docs/operations/finops.md)
 kubecostProductConfigs:
@@ -32,7 +33,4 @@ kubecostProductConfigs:
 
 # Disable unused components to save resources
 networkCosts:
-  enabled: false   # requires DaemonSet with host networking — skip for cost
-
-kubecostDeployment:
-  replicaCount: 1
+  enabled: false   # requires DaemonSet with host networking — skip for academic env
