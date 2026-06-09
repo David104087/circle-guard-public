@@ -38,20 +38,12 @@
 |---------|--------|-------|
 | circleguard-dev | 0 nodos (destruido) | `terraform destroy` pendiente si se quiere limpiar state |
 | circleguard-stage | destruido | state limpio |
-| circleguard-prod | scale-down a 0 en progreso | zona us-central1-a (zonal, no regional — ver Known Issues GCE_STOCKOUT) |
+| circleguard-prod | **destruido** (`terraform destroy` 2026-06-08) | Para recrear: `cd terraform/envs/prod && terraform apply -auto-approve` |
 
-> **IMPORTANTE:** circleguard-prod tiene autoscaling DESHABILITADO (deshabilitado manualmente el 2026-06-08 para forzar scale-down). Al iniciar la próxima sesión, si se necesita el cluster, re-habilitar con:
-> ```bash
-> gcloud container node-pools update default-pool \
->   --cluster=circleguard-prod \
->   --zone=us-central1-a \
->   --project=tallerfinal-496702 \
->   --enable-autoscaling --min-nodes=0 --max-nodes=5
-> ```
-
-Para escalar prod a 1 nodo:
+Para recrear prod desde cero:
 ```bash
-gcloud container clusters resize circleguard-prod --node-pool=default-pool --num-nodes=1 --zone=us-central1-a --project=tallerfinal-496702 --quiet
+cd terraform/envs/prod && terraform apply -auto-approve
+gcloud container clusters get-credentials circleguard-prod --zone=us-central1-a --project=tallerfinal-496702
 ```
 
 Para escalar dev a 1 nodo (si se necesita recrear):
