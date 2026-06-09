@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-08 — **Fin de sesión. Phase 11 (Multi-Cloud) COMPLETA 🟢.** Todos los clusters DO destruidos. GCP prod en proceso de scale-down a 0 nodos (autoscaling deshabilitado manualmente). Próxima tarea: Phase 13 — FinOps.
+2026-06-08 — **Fin de sesión. Phase 11 (Multi-Cloud) COMPLETA 🟢.** Todos los clusters DO destruidos. GCP prod destruido con `terraform destroy`. Próxima tarea: Phase 13 — FinOps.
 
 ---
 
@@ -32,13 +32,30 @@
 
 ---
 
-## Infraestructura GCP (estado actual)
+## Identidad GCP
+
+| Campo | Valor |
+|-------|-------|
+| Project ID | `tallerfinal-496702` |
+| Region | `us-central1` |
+| Cuenta | `dartunduagapenagos@gmail.com` |
+| Terraform SA | `terraform-sa@tallerfinal-496702.iam.gserviceaccount.com` |
+| Terraform key | `~/.gcp/terraform-key.json` (local, nunca en el repo) |
+| Terraform state | `gs://circle-guard-tfstate-496702/` |
+
+---
+
+## Infraestructura GCP (estado actual: TODO DESTRUIDO)
+
+**2026-06-08 — TODO APAGADO (fin de sesión).** Costo en GCP ≈ $0.
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | 0 nodos (destruido) | `terraform destroy` pendiente si se quiere limpiar state |
-| circleguard-stage | destruido | state limpio |
-| circleguard-prod | **destruido** (`terraform destroy` 2026-06-08) | Para recrear: `cd terraform/envs/prod && terraform apply -auto-approve` |
+| circleguard-dev | 0 nodos | State existe en GCS — `terraform apply` lo recrea |
+| circleguard-stage | destruido | State limpio |
+| circleguard-prod | **destruido** (`terraform destroy` 2026-06-08) | Zona `us-central1-a` (zonal, no regional — ver Known Issues GCE_STOCKOUT) |
+
+**0 clusters, 0 VMs, 0 discos persistentes activos.**
 
 Para recrear prod desde cero:
 ```bash
@@ -46,12 +63,11 @@ cd terraform/envs/prod && terraform apply -auto-approve
 gcloud container clusters get-credentials circleguard-prod --zone=us-central1-a --project=tallerfinal-496702
 ```
 
-Para escalar dev a 1 nodo (si se necesita recrear):
+Para recrear dev:
 ```bash
-# Primero verificar si circleguard-dev existe:
 gcloud container clusters list --project=tallerfinal-496702
-# Si no existe, aplicar terraform:
 cd terraform/envs/dev && terraform apply -auto-approve
+gcloud container clusters get-credentials circleguard-dev --region=us-central1 --project=tallerfinal-496702
 ```
 
 ---
@@ -78,8 +94,7 @@ done
 
 ## Rama activa
 
-`feat/multi-cloud-bonus` — contiene Phase 11 completa + todos los cambios del proyecto.
-Pendiente: hacer PR a `master` en GitHub (hacerlo manualmente en github.com/David104087/circle-guard-public).
+`feat/multi-cloud-bonus` — PR abierto hacia `master`. Phase 11 completa.
 
 ---
 
@@ -116,9 +131,3 @@ helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace
 
 - Container: `circleguard-jenkins` — `docker start circleguard-jenkins && docker exec --user root circleguard-jenkins chmod 666 /var/run/docker.sock`
 - URL: http://localhost:8080 | Password: `0de72cfcad744533ad0b8dca62e9b879`
-
-## Identidad GCP
-
-- Project: `tallerfinal-496702` | Region: `us-central1`
-- Terraform state: `gs://circle-guard-tfstate-496702/`
-- GCP prod cluster: `circleguard-prod` en zona `us-central1-a` (zonal, no regional)
