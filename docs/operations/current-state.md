@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-09 — **Phase 13 (FinOps) COMPLETA 🟢.** Kubecost 2.8.6 instalado en dev cluster (zona us-central1-a). UI responde HTTP 200 en port-forward :9090. Dev cluster ahora es zonal (us-central1-a) en lugar de regional — cambio de Terraform aplicado para evitar stockouts.
+2026-06-09 — **Fin de sesión. Phase 13 (FinOps) COMPLETA 🟢. GCP $0 activos.** Dev cluster destruido (`terraform destroy`). 4 discos huérfanos de Kubecost eliminados. Jenkins y SonarQube detenidos. Próxima sesión: task 3.11 (Kiali screenshot → fix branch) + Phase 12 (Chaos Engineering).
 
 ---
 
@@ -45,34 +45,22 @@
 
 ---
 
-## Infraestructura GCP (estado actual: DEV ACTIVO)
+## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
 
-**2026-06-09 — Dev cluster RUNNING (FinOps session).** Kubecost instalado en namespace `kubecost`.
+**2026-06-09 — FIN DE SESIÓN. Costo GCP = $0.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | **RUNNING — 1 nodo** | Zona `us-central1-a` (zonal — cambiado de regional para evitar GCE_STOCKOUT). Kubecost v2.8.6 instalado. |
+| circleguard-dev | **DESTRUIDO** (`terraform destroy` 2026-06-09) | Zona `us-central1-a` (zonal). State limpio en GCS. |
 | circleguard-stage | destruido | State limpio |
 | circleguard-prod | destruido | State limpio. Zona `us-central1-a`. |
 
-**IMPORTANTE: Ejecutar `ci/session-stop.sh` al terminar la sesión.**
+**0 clusters · 0 VMs · 0 discos persistentes · 0 costo**
 
-Para recrear dev:
+Para recrear dev en la próxima sesión:
 ```bash
 cd terraform/envs/dev && terraform apply -auto-approve
 gcloud container clusters get-credentials circleguard-dev --zone=us-central1-a --project=tallerfinal-496702
-```
-
-Para recrear prod:
-```bash
-cd terraform/envs/prod && terraform apply -auto-approve
-gcloud container clusters get-credentials circleguard-prod --zone=us-central1-a --project=tallerfinal-496702
-```
-
-Para acceder a Kubecost (cluster dev activo):
-```bash
-kubectl port-forward --namespace kubecost deployment/kubecost-cost-analyzer 9090
-# Abrir: http://localhost:9090
 ```
 
 ---
