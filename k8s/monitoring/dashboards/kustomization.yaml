@@ -36,3 +36,5 @@ configMapGenerator:
     files: [notification-service.json]
   - name: cg-dashboard-promotion
     files: [promotion-service.json]
+  - name: cg-dashboard-finops
+    files: [finops.json]

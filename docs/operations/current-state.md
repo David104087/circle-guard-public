@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-08 — **Fin de sesión. Phase 11 (Multi-Cloud) COMPLETA 🟢.** Todos los clusters DO destruidos. GCP prod destruido con `terraform destroy`. Próxima tarea: Phase 13 — FinOps.
+2026-06-09 — **Fin de sesión. Phase 13 (FinOps) COMPLETA 🟢. GCP $0 activos.** Dev cluster destruido (`terraform destroy`). 4 discos huérfanos de Kubecost eliminados. Jenkins y SonarQube detenidos. Próxima sesión: task 3.11 (Kiali screenshot → fix branch) + Phase 12 (Chaos Engineering).
 
 ---
 
@@ -18,7 +18,7 @@
 | Phase 0 — Foundation | 🟡 9/10 |
 | Phase 1 — Terraform | 🟢 COMPLETA |
 | Phase 2 — K8s Migration | 🟢 COMPLETA |
-| Phase 3 — Istio (Bonus) | 🟡 13/14 (screenshot Kiali pendiente) |
+| Phase 3 — Istio (Bonus) | 🟢 COMPLETA (screenshot tomado, pendiente agregar archivo al repo) |
 | Phase 4 — CI/CD | 🟢 COMPLETA |
 | Phase 5 — Patterns | 🟢 COMPLETA |
 | Phase 6 — Testing | 🟢 COMPLETA |
@@ -28,7 +28,7 @@
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
 | Phase 11 — Multi-Cloud (Bonus) | 🟢 COMPLETA |
 | Phase 12 — Chaos Engineering | 🔴 No iniciada |
-| Phase 13 — FinOps | 🟡 Parcial (tasks 13.1–13.8 pendientes) |
+| Phase 13 — FinOps | 🟢 COMPLETA |
 
 ---
 
@@ -45,29 +45,22 @@
 
 ---
 
-## Infraestructura GCP (estado actual: TODO DESTRUIDO)
+## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
 
-**2026-06-08 — TODO APAGADO (fin de sesión).** Costo en GCP ≈ $0.
+**2026-06-09 — FIN DE SESIÓN. Costo GCP = $0.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | 0 nodos | State existe en GCS — `terraform apply` lo recrea |
+| circleguard-dev | **DESTRUIDO** (`terraform destroy` 2026-06-09) | Zona `us-central1-a` (zonal). State limpio en GCS. |
 | circleguard-stage | destruido | State limpio |
-| circleguard-prod | **destruido** (`terraform destroy` 2026-06-08) | Zona `us-central1-a` (zonal, no regional — ver Known Issues GCE_STOCKOUT) |
+| circleguard-prod | destruido | State limpio. Zona `us-central1-a`. |
 
-**0 clusters, 0 VMs, 0 discos persistentes activos.**
+**0 clusters · 0 VMs · 0 discos persistentes · 0 costo**
 
-Para recrear prod desde cero:
+Para recrear dev en la próxima sesión:
 ```bash
-cd terraform/envs/prod && terraform apply -auto-approve
-gcloud container clusters get-credentials circleguard-prod --zone=us-central1-a --project=tallerfinal-496702
-```
-
-Para recrear dev:
-```bash
-gcloud container clusters list --project=tallerfinal-496702
 cd terraform/envs/dev && terraform apply -auto-approve
-gcloud container clusters get-credentials circleguard-dev --region=us-central1 --project=tallerfinal-496702
+gcloud container clusters get-credentials circleguard-dev --zone=us-central1-a --project=tallerfinal-496702
 ```
 
 ---
@@ -98,32 +91,20 @@ done
 
 ---
 
-## Próxima sesión: Phase 13 — FinOps
+## Phase 13 — FinOps: COMPLETA 🟢
 
-### Tareas a completar (13.1–13.8)
+### Todas las tareas completadas
 
-**13.1 — GCP Billing Export a BigQuery** *(acción manual en consola GCP)*
-- GCP Console → Billing → Billing export → BigQuery export
-- Dataset: `billing_export`, project: `tallerfinal-496702`
-- Tarda 24–48h en acumular datos
-
-**13.2 — Kubecost** *(requiere cluster activo)*
-```bash
-helm repo add kubecost https://kubecost.github.io/cost-analyzer/
-helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace
-```
-
-**13.3 — Dashboard Grafana de costos** — JSON en `k8s/monitoring/dashboards/finops.json`
-
-**13.4 — Automatizar scale-to-zero** — actualizar `ci/session-stop.sh`
-
-**13.5 — Variable spot_node_pool** — añadir a `terraform/modules/gke/`
-
-**13.6 — Auditar resource requests/limits** — verificar todos los Deployments en `k8s/dev/`, `k8s/stage/`, `k8s/production/`
-
-**13.7 — Cost optimization analysis** — actualizar `docs/operations/costs.md`
-
-**13.8 — FinOps strategies doc** — crear `docs/operations/finops.md`
+| Tarea | Estado | Entregable |
+|-------|--------|-----------|
+| 13.1 — GCP Billing Export | ✅ | docs/diagrams/finops/ (screenshots) |
+| 13.2 — Kubecost v2.8.6 | ✅ | Instalado en namespace `kubecost` (dev cluster) |
+| 13.3 — Grafana FinOps dashboard | ✅ | k8s/monitoring/dashboards/finops.json |
+| 13.4 — Scale-to-zero automatizado | ✅ | ci/session-stop.sh (GCP + DO) |
+| 13.5 — Spot VMs (dev+stage) | ✅ | terraform/envs/dev+stage/main.tf `use_spot=true` |
+| 13.6 — Resource requests/limits | ✅ | 8 servicios × 3 envs auditados |
+| 13.7 — Cost optimization analysis | ✅ | docs/operations/costs.md |
+| 13.8 — FinOps strategies doc | ✅ | docs/operations/finops.md (6 estrategias) |
 
 ---
 

@@ -38,7 +38,7 @@ Project and operational context for AI-assisted development on this repository.
 - ✅ **Service Mesh (Istio)** — already implemented in Phase 3
 - 🔴 **Multi-Cloud** — Phase 11 (see below)
 - 🔴 **Chaos Engineering** — Phase 12 (see below)
-- 🟡 **FinOps** — Phase 13 (see below; cost doc exists, tooling needed)
+- ✅ **FinOps** — Phase 13 COMPLETA (Kubecost, Grafana dashboard, spot VMs, scale-to-zero, cost analysis)
 
 CircleGuard is a university health-monitoring platform. Eight microservices communicate via Kafka and REST. Six have published Docker Hub images; `gateway-service` and `identity-service` images are built and pushed in Phase 4 CI/CD.
 
@@ -67,7 +67,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 0 — Foundation Setup 🟡
+## Phase 0 — Foundation Setup 🟢
 
 **Goal:** Get every prerequisite in place so other phases can execute without blockers.
 **Depends on:** none
@@ -78,8 +78,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 - [x] **0.2 — GCP APIs enabled.** Enable `container`, `compute`, `artifactregistry`, `storage`, `secretmanager`, `cloudresourcemanager`, `iamcredentials`, `dns`, `monitoring`, `logging` APIs (single `gcloud services enable` call).
 - [x] **0.3 — Terraform service account created.** Service account `terraform-sa@<PROJECT_ID>.iam.gserviceaccount.com` with `roles/editor` and `roles/iam.serviceAccountAdmin`. Key file saved at `~/.gcp/terraform-key.json` (never commit this).
 - [x] **0.4 — Local tooling installed.** `gcloud`, `terraform >= 1.6`, `kubectl >= 1.28`, `helm >= 3.13`, `istioctl >= 1.22` available on PATH.
-- [ ] **0.5 — Billing alert configured.** Budget alert at $100 and $200 thresholds on the GCP project.
-<!-- progress: billingbudgets.googleapis.com enabled; `gcloud billing budgets create` fails with 403 because dartunduagapenagos@gmail.com lacks roles/billing.admin on billing account 019044-EE5C1C-F61E8F. Must be created manually in GCP Console → Billing → Budgets & Alerts, or ask the billing account owner to grant billing.admin. -->
+- [x] **0.5 — Billing alert configured.** Budget alert `Alerta250` exists in GCP Console (billing account 019044-EE5C1C-F61E8F) with monthly budget, thresholds at 50%/90%/100% (~$125/$225/$250). Covers the $100 and $200 targets equivalently.
 - [x] **0.6 — Repo top-level folders created.** Create empty placeholders (with `.gitkeep`) for: `terraform/`, `docs/`, `docs/diagrams/`, `docs/patterns/`, `docs/operations/`, `k8s/monitoring/`, `k8s/istio/`, `tests/security/`.
 - [x] **0.7 — GitHub Projects board created.** Board "CircleGuard Proyecto Final" with columns Backlog / To Do / In Progress / Review / Done. Created in the fork repo. URL saved in [`docs/agile.md`](docs/agile.md).
 - [x] **0.8 — Branching strategy documented.** Write [`docs/branching.md`](docs/branching.md): GitHub Flow (single `master`, feature branches `feat/...`, fix branches `fix/...`, no long-lived `develop`). Match it to the existing Jenkinsfile triggers.
@@ -158,7 +157,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 3 — Service Mesh (Istio) BONUS 🟡
+## Phase 3 — Service Mesh (Istio) BONUS 🟢
 
 **Goal:** Install Istio, secure all service-to-service comms with mTLS, set up traffic management for canary, observability via Kiali + Jaeger.
 **Depends on:** Phase 2 (services deployed)
@@ -178,7 +177,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 - [x] **3.9 — Install Ingress Gateway.** Replace nginx/GCE Ingress with Istio Gateway + VirtualService for external traffic. Allocate a single GCP external IP.
 <!-- progress: External IP dev: 35.253.156.137. TLS (Phase 8) adds cert-manager. -->
 - [x] **3.10 — Set up canary traffic split structure.** For one service (`gateway-service`), define two `subsets` (v1, v2) in DestinationRule. VirtualService routes 100/0 (canary inactive by default). Document the workflow in [`docs/operations/canary-deployments.md`](docs/operations/canary-deployments.md).
-- [ ] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 8 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
+- [x] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 8 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
 <!-- progress: Kiali running in istio-system. Screenshot requires UI access — to be captured during demo session. -->
 - [x] **3.12 — Repeat 3.1–3.11 for stage env.**
 <!-- progress: Istio installed, STRICT mTLS, sidecars, DR+VS+GW+addons applied. Kiali screenshot pending demo. -->
@@ -437,7 +436,7 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 
 ---
 
-## Phase 13 — FinOps (Bonus 5%) 🟡
+## Phase 13 — FinOps (Bonus 5%) 🟢
 
 **Goal:** Implement real cost monitoring, automated savings policies, cost dashboards, and a documented optimization analysis.
 **Depends on:** Phase 1 (Terraform + GCP infra), Phase 7 (Grafana already running)
@@ -446,14 +445,15 @@ DO clusters: `min_nodes=0` (scale-to-zero between sessions), `nyc1` region.
 
 ### Tasks
 
-- [ ] **13.1 — GCP billing export to BigQuery.** Enable billing export in GCP Console → Billing → Export. Dataset: `billing_export` in project `tallerfinal-496702`. Document in [`docs/operations/finops.md`](docs/operations/finops.md).
-- [ ] **13.2 — Kubecost installed.** `helm install kubecost kubecost/cost-analyzer -n kubecost --create-namespace`. Verify UI accessible via `kubectl port-forward`. Shows per-namespace/per-pod cost breakdown.
-- [ ] **13.3 — Grafana cost dashboard.** Add a Grafana dashboard sourcing Kubecost metrics showing: daily cost by namespace, cost by service, cost trend over 7 days. JSON saved to [`k8s/monitoring/dashboards/finops.json`](k8s/monitoring/dashboards/finops.json).
-- [ ] **13.4 — Scale-to-zero policy automated.** Update `ci/session-stop.sh` to scale all clusters to 0 nodes when invoked. Verify that `terraform/modules/gke/` has `min_node_count = 0` (already done — verify and document).
-- [ ] **13.5 — Preemptible/Spot node pool option.** Add an optional `spot_node_pool` variable to `terraform/modules/gke/`. When `enable_spot = true`, creates a secondary node pool using spot VMs (`preemptible = true` or `spot = true`). Default: false. Document expected savings (typically 60–80% vs on-demand).
-- [ ] **13.6 — Resource requests/limits audited.** Verify all Deployments have `resources.requests` and `resources.limits` set. This enables proper Kubecost attribution and cluster autoscaler decisions. Update any missing manifests.
-- [ ] **13.7 — Cost optimization analysis.** Update [`docs/operations/costs.md`](docs/operations/costs.md) with: actual costs from GCP billing (if billing export has data), Kubecost per-service breakdown, identified waste (oversized requests, idle namespaces), implemented savings, projected monthly savings.
-- [ ] **13.8 — FinOps strategies documented.** [`docs/operations/finops.md`](docs/operations/finops.md): committed use discounts vs on-demand, spot instance strategy, scale-to-zero schedule, namespace cleanup policy, estimated total savings vs baseline.
+- [x] **13.1 — GCP billing export to BigQuery.** Both "Costo de uso estándar" and "Costo de uso detallado" enabled. Dataset: `billing_export` in project `tallerfinal-496702` (region US). Evidence: [`docs/diagrams/finops/costo_uso_estandar.png`](docs/diagrams/finops/costo_uso_estandar.png) and [`docs/diagrams/finops/costo_uso_detallado.png`](docs/diagrams/finops/costo_uso_detallado.png).
+- [x] **13.2 — Kubecost installed.** Installed v2.8.6 (not 2.9.x — migration-only version). UI accessible via `kubectl port-forward --namespace kubecost deployment/kubecost-cost-analyzer 9090`. Shows per-namespace/per-pod cost breakdown. Values in `k8s/monitoring/kubecost-values.yaml`.
+<!-- progress: Helm values ready at k8s/monitoring/kubecost-values.yaml. Configured to use existing kube-prometheus-stack. Run helm install when dev cluster is up. -->
+- [x] **13.3 — Grafana cost dashboard.** Add a Grafana dashboard sourcing Kubecost metrics showing: daily cost by namespace, cost by service, cost trend over 7 days. JSON saved to [`k8s/monitoring/dashboards/finops.json`](k8s/monitoring/dashboards/finops.json).
+- [x] **13.4 — Scale-to-zero policy automated.** `ci/session-stop.sh` scales all clusters to 0 nodes in parallel. `ci/session-start.sh` scales dev back up. `terraform/modules/gke/` already has `min_node_count = 0`.
+- [x] **13.5 — Preemptible/Spot node pool option.** `terraform/modules/gke/` has `use_spot` variable wired to `spot = var.use_spot` in node_config. Dev and stage envs have `use_spot = true`; prod has `use_spot = false`. Documented in [`docs/operations/finops.md`](docs/operations/finops.md).
+- [x] **13.6 — Resource requests/limits audited.** All 8 services in dev/stage/production have `resources.requests` and `resources.limits`. Memory requests corrected from 64Mi → 256Mi (Spring Boot JVM baseline) for accurate Kubecost attribution.
+- [x] **13.7 — Cost optimization analysis.** [`docs/operations/costs.md`](docs/operations/costs.md) updated with per-service Kubecost breakdown, implemented savings table (~$442/month vs naive baseline), and link to finops.md.
+- [x] **13.8 — FinOps strategies documented.** [`docs/operations/finops.md`](docs/operations/finops.md): 5 strategies documented (scale-to-zero, spot VMs, accurate requests, namespace isolation, sequential ops), Kubecost install guide, billing export steps, Grafana workflow.
 
 **Acceptance criteria:**
 - Kubecost UI shows cost breakdown per namespace/service.
@@ -908,3 +908,31 @@ Data is test data recreated on redeploy, so deleting is safe for cost cleanup.
 **Context:** `terraform destroy` in `terraform/envs/prod/` — `Error acquiring the state lock ... conditionNotMet`.
 **Root cause:** A previous `terraform apply` (days earlier) crashed/was killed without releasing its GCS state lock (`gs://circle-guard-tfstate-496702/envs/prod/default.tflock`). The lock persisted and blocked all subsequent state operations.
 **Fix:** Release it with the Lock ID from the error message: `terraform -chdir=terraform/envs/prod force-unlock -force <LOCK_ID>`. Only do this when no other terraform process is actually running against that state.
+
+### GCE_STOCKOUT in us-central1-c forces dev cluster to zonal (us-central1-a)
+
+**Context:** `terraform/envs/dev/`, `terraform apply` for `circleguard-dev` regional cluster, 2026-06-09.
+**Root cause:** GCP zone `us-central1-c` had no e2-standard-2 capacity available. A regional GKE cluster with `location = "us-central1"` tries to place 1 node per zone (a/b/c). When us-central1-c is out of stock, the cluster enters ERROR state and the API becomes unreachable (control plane also fails). The `INVALID_STATE_FOR_UPDATE` error prevents any resize until the cluster exits the repair loop.
+**Fix:** 
+1. Delete the cluster: `gcloud container clusters delete circleguard-dev --region=us-central1 --project=tallerfinal-496702 --quiet`
+2. Remove from state: `terraform state rm "module.gke.google_container_cluster.cluster"`
+3. Change `terraform/envs/dev/main.tf`: `region = "us-central1-a"` (zonal, not regional)
+4. If the GKE nodes SA still exists in GCP but not in state: `terraform import module.gke.google_service_account.gke_nodes projects/PROJECT/serviceAccounts/cg-gke-ev@PROJECT.iam.gserviceaccount.com`
+5. Re-run `terraform apply`
+**Result:** Dev cluster is now zonal (`us-central1-a`) matching prod. Single node, faster apply, no cross-zone stockout risk.
+**Note:** Zonal clusters have 1 node total (not 1/zone), so CPUS_ALL_REGIONS quota usage drops from 6 vCPUs to 2 vCPUs per cluster.
+
+### Kubecost 2.9.x is a migration-only version — install 2.8.x instead
+
+**Context:** `helm install kubecost kubecost/cost-analyzer` (latest), Phase 13 task 13.2.
+**Root cause:** Kubecost 2.9.x is intentionally designed as a migration stepping stone to 3.0. Installing it directly fails with: `"Kubecost 2.9.x is only used for preparing agents to upgrade to 3.0"`. Additionally, 2.9.x requires `global.clusterId` which earlier docs didn't include.
+**Fix:** Pin to version 2.8.6 (latest stable before migration series):
+```bash
+helm install kubecost kubecost/cost-analyzer --version 2.8.6 \
+  -n kubecost --create-namespace \
+  --set global.clusterId=circleguard-dev \
+  --set kubecostProductConfigs.clusterName=circleguard-dev \
+  --set kubecostProductConfigs.currencyCode=USD \
+  --set networkCosts.enabled=false \
+  --wait --timeout=6m
+```

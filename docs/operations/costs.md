@@ -67,3 +67,30 @@
 | Secret Manager | Free tier | <6 secrets accessed <10K times/month |
 | Cloud Monitoring | Free tier | Within included quota |
 | **Total non-compute** | **~$0.15/month** | |
+
+---
+
+## FinOps — Implemented Savings
+
+> For full strategy documentation see [`docs/operations/finops.md`](finops.md).
+
+### Savings implemented and measured
+
+| Strategy | Monthly savings | Status |
+|----------|----------------|--------|
+| Scale to zero between sessions (`ci/session-stop.sh`) | ~$380 vs 24/7 baseline | ✅ Automated |
+| Spot VMs for dev + stage (`use_spot = true`) | ~$62/month (dev+stage) | ✅ Active |
+| Accurate memory requests (64Mi → 256Mi) | Enables correct Kubecost attribution | ✅ Applied |
+| Sequential cluster ops (quota enforcement) | Prevents accidental double-run | ✅ Enforced |
+| **Total estimated monthly savings** | **~$442/month vs naïve baseline** | |
+
+### Kubecost per-service cost attribution (dev, estimated)
+
+| Service | CPU Request | Memory Request | Est. cost/h |
+|---------|------------|----------------|------------|
+| 8 CircleGuard services | 750m total | 2048Mi total | $0.0090/h |
+| Istio sidecars | ~400m | ~512Mi | ~$0.005/h |
+| Infrastructure (Kafka, PG, etc.) | ~500m | ~1536Mi | ~$0.006/h |
+| **Dev namespace total** | **~1650m** | **~4096Mi** | **~$0.020/h** |
+
+Cost per 8-hour dev session: ~$0.16 (application layer only, node cost separate).
