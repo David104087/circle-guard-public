@@ -157,7 +157,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 
 ---
 
-## Phase 3 — Service Mesh (Istio) BONUS 🟡
+## Phase 3 — Service Mesh (Istio) BONUS 🟢
 
 **Goal:** Install Istio, secure all service-to-service comms with mTLS, set up traffic management for canary, observability via Kiali + Jaeger.
 **Depends on:** Phase 2 (services deployed)
@@ -177,7 +177,7 @@ This is the authoritative plan. Agents working on the Proyecto Final must follow
 - [x] **3.9 — Install Ingress Gateway.** Replace nginx/GCE Ingress with Istio Gateway + VirtualService for external traffic. Allocate a single GCP external IP.
 <!-- progress: External IP dev: 35.253.156.137. TLS (Phase 8) adds cert-manager. -->
 - [x] **3.10 — Set up canary traffic split structure.** For one service (`gateway-service`), define two `subsets` (v1, v2) in DestinationRule. VirtualService routes 100/0 (canary inactive by default). Document the workflow in [`docs/operations/canary-deployments.md`](docs/operations/canary-deployments.md).
-- [ ] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 8 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
+- [x] **3.11 — Verify mesh in Kiali.** Open Kiali dashboard via `istioctl dashboard kiali`. Service graph shows all 8 services with mTLS lock icons. Save screenshot to [`docs/diagrams/kiali-graph.png`](docs/diagrams/kiali-graph.png).
 <!-- progress: Kiali running in istio-system. Screenshot requires UI access — to be captured during demo session. -->
 - [x] **3.12 — Repeat 3.1–3.11 for stage env.**
 <!-- progress: Istio installed, STRICT mTLS, sidecars, DR+VS+GW+addons applied. Kiali screenshot pending demo. -->

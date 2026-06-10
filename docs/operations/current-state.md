@@ -18,7 +18,7 @@
 | Phase 0 — Foundation | 🟡 9/10 |
 | Phase 1 — Terraform | 🟢 COMPLETA |
 | Phase 2 — K8s Migration | 🟢 COMPLETA |
-| Phase 3 — Istio (Bonus) | 🟡 13/14 (screenshot Kiali pendiente) |
+| Phase 3 — Istio (Bonus) | 🟢 COMPLETA (screenshot tomado, pendiente agregar archivo al repo) |
 | Phase 4 — CI/CD | 🟢 COMPLETA |
 | Phase 5 — Patterns | 🟢 COMPLETA |
 | Phase 6 — Testing | 🟢 COMPLETA |
