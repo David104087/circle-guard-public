@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-10 — **En sesión. Phase 12 (Chaos Engineering) COMPLETA 🟢.** Dev cluster activo (3 nodos, autoscaler escaló). Chaos Mesh v2.7.0 instalado en `chaos-testing`. 5 experimentos ejecutados. 2 mejoras implementadas en `k8s/dev/`. Rama `feat/chaos-engineering` lista para PR.
+2026-06-10 — **Fin de sesión. Phase 12 (Chaos Engineering) COMPLETA 🟢. GCP $0 activos.** Dev cluster destruido (`terraform destroy`). 6 discos huérfanos eliminados. Jenkins/SonarQube ya estaban detenidos (Docker Desktop no corría). DO: state vacío, $0. Próxima sesión: abrir PR de `feat/chaos-engineering` → `master`.
 
 ---
 
@@ -45,25 +45,17 @@
 
 ---
 
-## Infraestructura GCP (estado actual: DEV ACTIVO — destruir al terminar sesión)
+## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
 
-**2026-06-10 — SESIÓN EN CURSO. Phase 12 chaos engineering activo.**
+**2026-06-10 — FIN DE SESIÓN. Costo GCP = $0.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | **ACTIVO** — 3 nodos (autoscaler) | Zona `us-central1-a`. 6 vCPUs en uso. Chaos Mesh instalado. |
+| circleguard-dev | **DESTRUIDO** (`terraform destroy` 2026-06-10) | State limpio en GCS. 6 discos PVC eliminados. |
 | circleguard-stage | destruido | State limpio |
-| circleguard-prod | destruido | State limpio. Zona `us-central1-a`. |
+| circleguard-prod | destruido | State limpio |
 
-**⚠️ DESTRUIR DEV AL TERMINAR SESIÓN:**
-```bash
-cd terraform/envs/dev && terraform destroy -auto-approve
-# Luego eliminar discos huérfanos
-gcloud compute disks list --project=tallerfinal-496702 --format="csv[no-heading](name,zone)" | \
-  while IFS=, read -r NAME ZONE; do
-    gcloud compute disks delete "$NAME" --zone="$(basename "$ZONE")" --project=tallerfinal-496702 --quiet
-  done
-```
+**0 clusters · 0 VMs · 0 discos persistentes · 0 LBs · 0 costo**
 
 Para recrear dev en la próxima sesión:
 ```bash
