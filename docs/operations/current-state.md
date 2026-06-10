@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-09 — **Fin de sesión. Phase 13 (FinOps) COMPLETA 🟢. GCP $0 activos.** Dev cluster destruido (`terraform destroy`). 4 discos huérfanos de Kubecost eliminados. Jenkins y SonarQube detenidos. Próxima sesión: task 3.11 (Kiali screenshot → fix branch) + Phase 12 (Chaos Engineering).
+2026-06-10 — **En sesión. Phase 12 (Chaos Engineering) COMPLETA 🟢.** Dev cluster activo (3 nodos, autoscaler escaló). Chaos Mesh v2.7.0 instalado en `chaos-testing`. 5 experimentos ejecutados. 2 mejoras implementadas en `k8s/dev/`. Rama `feat/chaos-engineering` lista para PR.
 
 ---
 
@@ -27,7 +27,7 @@
 | Phase 9 — Change Mgmt | 🟢 COMPLETA |
 | Phase 10 — Docs/Demo | 🟢 COMPLETA |
 | Phase 11 — Multi-Cloud (Bonus) | 🟢 COMPLETA |
-| Phase 12 — Chaos Engineering | 🔴 No iniciada |
+| Phase 12 — Chaos Engineering | 🟢 COMPLETA |
 | Phase 13 — FinOps | 🟢 COMPLETA |
 
 ---
@@ -45,17 +45,25 @@
 
 ---
 
-## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
+## Infraestructura GCP (estado actual: DEV ACTIVO — destruir al terminar sesión)
 
-**2026-06-09 — FIN DE SESIÓN. Costo GCP = $0.**
+**2026-06-10 — SESIÓN EN CURSO. Phase 12 chaos engineering activo.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | **DESTRUIDO** (`terraform destroy` 2026-06-09) | Zona `us-central1-a` (zonal). State limpio en GCS. |
+| circleguard-dev | **ACTIVO** — 3 nodos (autoscaler) | Zona `us-central1-a`. 6 vCPUs en uso. Chaos Mesh instalado. |
 | circleguard-stage | destruido | State limpio |
 | circleguard-prod | destruido | State limpio. Zona `us-central1-a`. |
 
-**0 clusters · 0 VMs · 0 discos persistentes · 0 costo**
+**⚠️ DESTRUIR DEV AL TERMINAR SESIÓN:**
+```bash
+cd terraform/envs/dev && terraform destroy -auto-approve
+# Luego eliminar discos huérfanos
+gcloud compute disks list --project=tallerfinal-496702 --format="csv[no-heading](name,zone)" | \
+  while IFS=, read -r NAME ZONE; do
+    gcloud compute disks delete "$NAME" --zone="$(basename "$ZONE")" --project=tallerfinal-496702 --quiet
+  done
+```
 
 Para recrear dev en la próxima sesión:
 ```bash
@@ -87,7 +95,35 @@ done
 
 ## Rama activa
 
-`feat/multi-cloud-bonus` — PR abierto hacia `master`. Phase 11 completa.
+`feat/chaos-engineering` — Phase 12 completa. Listo para PR hacia `master`.
+
+### Contenido de la rama
+- `docs/chaos/experiments.md` — 5 experimentos diseñados con hipótesis y CRDs
+- `docs/chaos/manifests/` — 5 archivos YAML de Chaos Mesh
+- `docs/chaos/results.md` — Resultados documentados de los 5 experimentos
+- `docs/chaos/runbook.md` — Runbook operacional
+- `ci/Jenkinsfile.dev` — Stage `Chaos Smoke Test` añadido
+- `k8s/dev/` — Mejora 1: `holdApplicationUntilProxyStarts` en 4 servicios
+- `k8s/dev/form-service.yaml`, `notification-service.yaml` — Mejora 2: Kafka reconnect backoff
+
+---
+
+## Phase 12 — Chaos Engineering: COMPLETA 🟢
+
+### Todas las tareas completadas
+
+| Tarea | Estado | Entregable |
+|-------|--------|-----------|
+| 12.1 — Chaos Mesh instalado | ✅ | Namespace `chaos-testing`, v2.7.0, `securityMode=false` |
+| 12.2 — 5 experimentos diseñados | ✅ | docs/chaos/experiments.md + manifests/ |
+| 12.3 — Exp 1: Pod failure | ✅ | Pod restart en ~66s. docs/chaos/results.md |
+| 12.4 — Exp 2: Network delay | ✅ | 200ms delay inyectado. AllInjected=True confirmado |
+| 12.5 — Exp 3: Network partition | ✅ | 100% loss por 50s. gateway Running durante toda la partición |
+| 12.6 — Exp 4: CPU stress | ✅ | CPU: 2m→500m. Pod sobrevivió (tcpSocket probe) |
+| 12.7 — Exp 5: Kafka disruption | ✅ | Kafka restart en ~10s. Consumer reconectó automáticamente |
+| 12.8 — 2 mejoras implementadas | ✅ | holdApplicationUntilProxyStarts + Kafka backoff config |
+| 12.9 — Runbook | ✅ | docs/chaos/runbook.md |
+| 12.10 — Pipeline integration | ✅ | ci/Jenkinsfile.dev: Chaos Smoke Test stage |
 
 ---
 

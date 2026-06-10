@@ -1,0 +1,25 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: partition-gateway-auth
+  namespace: chaos-testing
+spec:
+  action: loss
+  mode: one
+  selector:
+    namespaces:
+      - circleguard-dev
+    labelSelectors:
+      app: gateway-service
+  loss:
+    loss: "100"
+    correlation: "100"
+  direction: to
+  target:
+    mode: one
+    selector:
+      namespaces:
+        - circleguard-dev
+      labelSelectors:
+        app: auth-service
+  duration: "60s"

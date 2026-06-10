@@ -9,6 +9,10 @@ data:
   SPRING_DATASOURCE_USERNAME: "admin"
   SPRING_KAFKA_BOOTSTRAP-SERVERS: "kafka:9092"
   SERVER_PORT: "8086"
+  # Chaos engineering improvement: faster Kafka producer reconnect (Exp 5)
+  SPRING_KAFKA_PRODUCER_PROPERTIES_RECONNECT_BACKOFF_MS: "500"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_RECONNECT_BACKOFF_MAX_MS: "5000"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_RETRY_BACKOFF_MS: "500"
 ---
 apiVersion: v1
 kind: Secret
@@ -41,6 +45,8 @@ spec:
     metadata:
       labels:
         app: form-service
+      annotations:
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
     spec:
       containers:
         - name: form-service

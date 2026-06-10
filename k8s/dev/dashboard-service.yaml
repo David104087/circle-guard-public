@@ -41,6 +41,8 @@ spec:
     metadata:
       labels:
         app: dashboard-service
+      annotations:
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
     spec:
       containers:
         - name: dashboard-service

@@ -1,0 +1,17 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: stress-dashboard-cpu
+  namespace: chaos-testing
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - circleguard-dev
+    labelSelectors:
+      app: dashboard-service
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: "90s"
