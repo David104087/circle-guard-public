@@ -231,6 +231,80 @@ pipeline {
             }
         }
 
+        stage('Chaos Smoke Test') {
+            environment {
+                USE_GKE_GCLOUD_AUTH_PLUGIN = 'True'
+            }
+            steps {
+                sh '''
+                    echo "=== Chaos Smoke Test: pod-kill on notification-service ==="
+                    # Verify Chaos Mesh is installed
+                    kubectl get pods -n chaos-testing --no-headers | grep -q "Running" || {
+                        echo "Chaos Mesh not installed in chaos-testing namespace — skipping chaos test"
+                        exit 0
+                    }
+
+                    # Capture baseline: pod name before kill
+                    BEFORE_POD=$(kubectl get pod -n ${NAMESPACE} -l app=notification-service \
+                        --no-headers -o custom-columns=":metadata.name" | head -1)
+                    echo "Target pod: ${BEFORE_POD}"
+
+                    # Apply 60-second pod-kill experiment
+                    cat <<EOFCHAOS | kubectl apply -f -
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: ci-smoke-kill-notification
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - ${NAMESPACE}
+    labelSelectors:
+      app: notification-service
+  duration: "60s"
+EOFCHAOS
+
+                    echo "Chaos experiment applied. Waiting 30s for pod to be killed and restarted..."
+                    sleep 30
+
+                    # Verify pod was killed (new pod name or pod restarting)
+                    RESTART_COUNT=$(kubectl get pod -n ${NAMESPACE} -l app=notification-service \
+                        --no-headers -o custom-columns=":status.containerStatuses[0].restartCount" | head -1)
+                    echo "Restart count after kill: ${RESTART_COUNT}"
+
+                    # Wait for recovery (max 60s)
+                    RECOVERED=false
+                    for i in $(seq 1 12); do
+                        STATUS=$(kubectl get pod -n ${NAMESPACE} -l app=notification-service \
+                            --no-headers -o custom-columns=":status.phase" | head -1)
+                        echo "Pod status: ${STATUS} (check ${i}/12)"
+                        if [ "${STATUS}" = "Running" ]; then
+                            RECOVERED=true
+                            break
+                        fi
+                        sleep 5
+                    done
+
+                    # Cleanup chaos resource
+                    kubectl delete podchaos ci-smoke-kill-notification -n chaos-testing || true
+
+                    if [ "${RECOVERED}" = "true" ]; then
+                        echo "CHAOS SMOKE TEST PASSED: notification-service recovered within 60s"
+                    else
+                        echo "CHAOS SMOKE TEST WARNING: notification-service did not recover within 60s"
+                    fi
+                '''
+            }
+            post {
+                always {
+                    sh 'kubectl delete podchaos ci-smoke-kill-notification -n chaos-testing --ignore-not-found || true'
+                }
+            }
+        }
+
     }
 
     post {

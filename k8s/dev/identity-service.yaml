@@ -52,6 +52,8 @@ spec:
     metadata:
       labels:
         app: identity-service
+      annotations:
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
     spec:
       containers:
         - name: identity-service
