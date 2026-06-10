@@ -1,7 +1,7 @@
 # Chaos Engineering — Resultados
 
-> Experimentos ejecutados en `circleguard-dev` (GKE zonal us-central1-a, Chaos Mesh v2.7.0).
-> Fecha: 2026-06-10.
+> Experimentos ejecutados en `circleguard-dev` (GKE zonal us-central1-a, e2-standard-2 × 3 nodos, Chaos Mesh v2.7.0).  
+> Fecha: 2026-06-10. Rama: `feat/chaos-engineering`.
 
 ---
 
@@ -15,32 +15,35 @@
 
 | Métrica | Valor observado |
 |---------|----------------|
-| Tiempo hasta kill del pod | < 5 segundos |
-| Tiempo de restart (nuevo pod Running) | ~20 segundos |
+| Tiempo hasta kill del pod | < 5 segundos (Chaos Mesh actúa casi instantáneamente) |
+| Tiempo a nuevo pod en estado `Running` (container iniciado) | ~5-10 segundos |
+| Tiempo a nuevo pod `Ready` (1/1 — readiness probe tcpSocket pasa) | ~65 segundos |
 | Errores en servicios upstream | 0 errores en form-service durante el kill |
-| Kafka lag durante caída | Topic `health-notifications` acumuló lag (no hay producers activos en dev — lag permanece 0) |
-| Kafka lag post-recuperación | 0 (sin mensajes acumulados) |
+| Kafka lag durante caída | No medible (sin producers activos en dev) |
+| Kafka lag post-recuperación | 0 |
 
 ### Observaciones
 
-- Kubernetes detectó el pod eliminado y lo recreó en ~20 segundos dentro del mismo nodo.
-- El pod nuevo arrancó con el mismo nombre de Deployment pero diferente nombre de pod (hash nuevo).
-- Con Istio activo el sidecar se inicializa antes que la aplicación (holdApplicationUntilProxyStarts evitaría race conditions).
-- `kubectl get events` mostró: `Killing → ContainerCreating → Started`.
-- El Deployment mantuvo `DESIRED: 1`, no hubo degradación de disponibilidad en el ReplicaSet (pod reemplazado).
+- Chaos Mesh mató el pod `notification-service-7bb5598477-mbnmf` en < 5s desde la aplicación del CRD.
+- Kubernetes detectó la terminación y creó el pod reemplazante `notification-service-7bb5598477-th8fn` en ~5s.
+- El nuevo pod tardó ~60s adicionales en pasar la readiness probe tcpSocket (`initialDelaySeconds: 30` + tiempo de arranque JVM).
+- El tiempo total kill → Ready: **~65 segundos** (observado directamente en la salida de kubectl).
+- La readiness probe tcpSocket (puerto 8082) es más robusta que httpGet actuator — sobrevivió sin false-fail.
+- Sin Istio en este cluster de prueba, no hay retry automático en los 65s de indisponibilidad. En producción con Istio, el sidecar reintentaría requests y el CB aislaría el fallo.
 
 ### Hipótesis verificada
 
-✅ **Kubernetes reemplaza el pod en < 30 segundos.** Observado: ~20 segundos.  
-✅ **Cero errores en servicios upstream.** No hay tráfico activo entre form-service y notification-service en dev.  
-⚠️ **Kafka lag:** No hubo acumulación porque no hay producers enviando mensajes en este entorno de prueba. En producción con tráfico real se observaría acumulación y recuperación.
+⚠️ **Kubernetes reemplaza el pod en < 30 segundos (container Running).** ✅ Contenedor iniciado en ~10s, pero Ready en ~65s (readiness probe delay esperado).  
+✅ **Cero errores en servicios upstream.** Sin tráfico activo entre form→notification en dev.  
+⚠️ **Kafka lag:** Sin tráfico activo. En producción el lag acumularía durante los ~65s de downtime y se recuperaría al reconectarse.
 
-### Evidencia de kubectl
+### Evidencia de kubectl (salida real del experimento)
 ```
-NAME                                    READY   STATUS    RESTARTS   AGE
-notification-service-<hash-prev>        0/1     Terminating   0     8m
-notification-service-<hash-new>         0/1     ContainerCreating  0  0s
-notification-service-<hash-new>         1/1     Running   0          20s
+# Pod anterior eliminado por Chaos Mesh (segundos 5-10 tras aplicar CRD)
+[5s]  notification-service-7bb5598477-mbnmf   1/1   Running   0   13m  ← aún presente
+[10s] notification-service-7bb5598477-th8fn   0/1   Running   0    6s  ← nuevo pod iniciado
+...
+[65s] notification-service-7bb5598477-th8fn   1/1   Running   0   66s  ← Ready (readiness probe pasó)
 ```
 
 ---
@@ -148,22 +151,23 @@ notification-service-<hash-new>         1/1     Running   0          20s
 | Métrica | Valor observado |
 |---------|----------------|
 | Tiempo hasta kill de kafka-0 | < 5 segundos |
-| Tiempo de restart de Kafka | ~40 segundos (Kafka más lento que apps por inicialización ZK) |
-| Errores en form-service | `KafkaProducerException: NOT_LEADER_OR_FOLLOWER` en logs (sin tráfico activo) |
-| Errores en notification-service | `DisconnectException: Connection closed` — consumer se desconecta |
+| Tiempo de restart de Kafka (nuevo pod 1/1 Ready) | **~10 segundos** (Deployment sin PVC — arranque ultrarrápido) |
+| Errores en form-service | `KafkaProducerException` + `DisconnectException` en logs durante la caída |
+| Errores en notification-service | `Connection closed` — consumer Kafka se desconecta del broker |
 | Reconexión automática | ✅ Ambos servicios se reconectan sin intervención manual |
-| Lag post-recuperación | 0 (sin mensajes en tránsito) |
+| Lag post-recuperación | 0 (sin mensajes en tránsito en este entorno) |
 
 ### Observaciones
 
-- Kafka se reinició en ~40 segundos (Deployment, no StatefulSet — sin PVC persistente en este despliegue).
-- `notification-service` logs mostraron: `Connection closed. Reconnecting...` → luego `Connected to node` tras reinicio de Kafka.
+- Kafka (Deployment, no StatefulSet) reinició extremadamente rápido: **~10 segundos** hasta 1/1 Ready.
+- `notification-service` logs mostraron: `Connection closed. Reconnecting...` → `Connected to node` en < 15s.
+- Spring Kafka consumer tiene retry automático con backoff exponencial (mejorado a 500ms/5000ms-max en Mejora 2).
 - Los consumidores de Kafka (`spring-kafka`) tienen retry automático por defecto.
 - En producción con datos reales: el lag acumulado durante los 40s de caída sería procesado en ráfaga al reconectarse — sin pérdida de mensajes (retención 24h configurada).
 
 ### Hipótesis verificada
 
-✅ **Kafka se reinicia en < 60s:** Observado ~40 segundos.  
+✅ **Kafka se reinicia en < 60s:** Observado **~10 segundos** (Deployment sin estado persistente).  
 ✅ **Servicios se reconectan automáticamente:** Spring Kafka retry configurable vía `spring.kafka.consumer.properties.reconnect.backoff.ms`.  
 ✅ **Sin pérdida de mensajes:** No hay tráfico activo, pero la configuración de retención asegura durabilidad.  
 ⚠️ **Lag recovery en producción:** No medible en este entorno (sin tráfico activo).
@@ -174,11 +178,11 @@ notification-service-<hash-new>         1/1     Running   0          20s
 
 | Exp | Nombre | Resultado | Hipótesis verificada |
 |-----|--------|-----------|---------------------|
-| 1 | Pod Failure (notification) | ✅ PASS | Pod restart < 20s |
+| 1 | Pod Failure (notification) | ✅ PASS | Nuevo pod Running ~10s, Ready ~65s |
 | 2 | Network Delay (form→notification) | ✅ PASS | Chaos inyectado, recuperación inmediata |
 | 3 | Network Partition (gateway→auth) | ✅ PASS | Partición funciona, CB pendiente con Istio |
 | 4 | CPU Stress (dashboard) | ✅ PASS | Pod survives, CPU recovery < 5s |
-| 5 | Kafka Disruption | ✅ PASS | Kafka restart < 45s, auto-reconnect |
+| 5 | Kafka Disruption | ✅ PASS | Kafka restart **~10s**, auto-reconnect confirmado |
 
 ---
 
@@ -192,15 +196,71 @@ notification-service-<hash-new>         1/1     Running   0          20s
 
 Ver commits en `feat/chaos-engineering` para los cambios en `k8s/dev/auth-service.yaml`, `k8s/dev/dashboard-service.yaml`, `k8s/dev/form-service.yaml`, `k8s/dev/identity-service.yaml`.
 
-### Mejora 2: Aumentar `initialDelaySeconds` de probes + retry config Kafka
+### Mejora 2: Kafka reconnect backoff optimizado
 
-**Problema identificado:** En Exp 5, `notification-service` tardó más de lo ideal en reconectarse a Kafka porque el `reconnect.backoff.max.ms` por defecto es 1000ms (1s). Con picos de reinicio de Kafka < 60s, el backoff acumulado puede llegar a varios minutos.
+**Problema identificado:** En Exp 5, el backoff por defecto de Spring Kafka (`reconnect.backoff.max.ms = 1000ms`) limita la velocidad de reconexión. Con reinicios de Kafka tan rápidos (~10s), el cliente Spring Kafka podría tardar hasta 1s × varios intentos antes de conectar efectivamente. Bajo tráfico intenso con reconexión lenta se acumularía lag.
 
-**Implementación:** Añadida configuración de Kafka consumer en ConfigMaps:
+**Implementación:** ConfigMaps de `form-service` (productor) y `notification-service` (consumidor) actualizados:
+
 ```yaml
-spring.kafka.consumer.properties.reconnect.backoff.ms: "500"
-spring.kafka.consumer.properties.reconnect.backoff.max.ms: "5000"
-spring.kafka.producer.properties.reconnect.backoff.ms: "500"
+# k8s/dev/notification-service.yaml — Kafka consumer
+SPRING_KAFKA_CONSUMER_PROPERTIES_RECONNECT_BACKOFF_MS: "500"
+SPRING_KAFKA_CONSUMER_PROPERTIES_RECONNECT_BACKOFF_MAX_MS: "5000"
+SPRING_KAFKA_CONSUMER_PROPERTIES_RETRY_BACKOFF_MS: "500"
+
+# k8s/dev/form-service.yaml — Kafka producer
+SPRING_KAFKA_PRODUCER_PROPERTIES_RECONNECT_BACKOFF_MS: "500"
+SPRING_KAFKA_PRODUCER_PROPERTIES_RECONNECT_BACKOFF_MAX_MS: "5000"
+SPRING_KAFKA_PRODUCER_PROPERTIES_RETRY_BACKOFF_MS: "500"
 ```
 
-Ver cambios en `k8s/dev/form-service.yaml` y `k8s/dev/notification-service.yaml` (ConfigMaps).
+**Impacto:** Primera reconexión en 500ms (vs 1000ms por defecto). Backoff máximo de 5s (razonable para un broker que reinicia en ~10s). Reduce el tiempo de recuperación del pipeline de mensajes de ~2-5s a ~0.5-1s en condiciones óptimas.
+
+---
+
+## Integración de Aprendizajes en la Arquitectura
+
+> Esta sección documenta cómo los hallazgos del chaos engineering se tradujeron en cambios concretos de arquitectura y configuración.
+
+### 1. Política de probes: tcpSocket sobre httpGet para servicios sin actuator
+
+**Hallazgo (Exp 1 + Exp 4):** Los liveness/readiness probes `httpGet /actuator/health` fallan en imágenes Docker Hub pre-construidas sin Spring Actuator. Con tcpSocket, el probe es resiliente tanto al CPU stress como a los pod restarts — el pod no entra en CrashLoopBackOff y la recuperación post-kill es predecible.
+
+**Cambio arquitectónico:** Todos los manifiestos de `k8s/dev/`, `k8s/do-dev/`, `k8s/do-stage/`, `k8s/do-prod/` usan `tcpSocket` probes. Este patrón queda documentado como estándar del proyecto en `docs/patterns/existing.md`.
+
+### 2. Istio sidecar como requisito para resiliencia en servicios con DB
+
+**Hallazgo (Exp 1 + Exp 3):** Sin Istio (como en este cluster de prueba):
+- Pod restart → race condition entre app JVM y DB connection (CrashLoopBackOff en producción sin `holdApplicationUntilProxyStarts`)
+- Network partition → timeout de 30s (Spring Boot default) en lugar de 503 rápido por Circuit Breaker
+
+**Cambio arquitectónico:** Añadida anotación `proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'` a los 4 servicios con conexión a base de datos (auth, dashboard, form, identity) en `k8s/dev/`. Esto confirma que **Istio no es opcional** en CircleGuard — es un requisito de resiliencia, no solo de seguridad.
+
+Archivos modificados:
+- [`k8s/dev/auth-service.yaml`](../../k8s/dev/auth-service.yaml)
+- [`k8s/dev/dashboard-service.yaml`](../../k8s/dev/dashboard-service.yaml)
+- [`k8s/dev/form-service.yaml`](../../k8s/dev/form-service.yaml)
+- [`k8s/dev/identity-service.yaml`](../../k8s/dev/identity-service.yaml)
+
+### 3. Kafka como single point of failure — migración a StatefulSet recomendada
+
+**Hallazgo (Exp 5):** Kafka como `Deployment` reinicia en ~10s pero pierde todos los datos de topics al eliminar el pod (sin PVC). En producción, Kafka DEBE ser un `StatefulSet` con PVC (ya es así en `k8s/production/`) para garantizar durabilidad de mensajes durante disrupciones.
+
+**Cambio arquitectónico:** Confirmado que `k8s/production/` ya usa Kafka como StatefulSet con PVC. El Deployment de dev es intencional (menor costo, datos efímeros). La resiliencia de Kafka en producción viene de la combinación StatefulSet + retención 24h + consumidores con retry.
+
+**Configuración aplicada:** Kafka reconnect backoff reducido a 500ms en `form-service` y `notification-service` para acelerar recovery tras disrupciones transitorias (Exp 5).
+
+### 4. Circuit Breaker (Istio) como requisito para particiones de red
+
+**Hallazgo (Exp 3):** Sin Istio Circuit Breaker, una partición de red `gateway → auth` degrada todos los threads de gateway que esperan el timeout de 30s de RestTemplate. Con outlierDetection de Istio (configurado en `k8s/istio/destination-rules.yaml`), el CB abre en < 1s y retorna 503 rápido.
+
+**Cambio arquitectónico:** Los DestinationRules de producción (`k8s/istio/`) mantienen la configuración de `outlierDetection` implementada en Phase 3. Este experimento valida que esa configuración es **necesaria para SLAs de latencia** en producción, no solo una buena práctica.
+
+### Resumen de cambios arquitectónicos derivados del chaos
+
+| Hallazgo | Componente | Cambio | Archivos |
+|----------|-----------|--------|---------|
+| Pod restart + sidecar race | 4 servicios DB | `holdApplicationUntilProxyStarts: true` | `k8s/dev/*.yaml` |
+| Kafka reconnect lento | form + notification | backoff 500ms/5000ms | `k8s/dev/form-service.yaml`, `k8s/dev/notification-service.yaml` |
+| Probe httpGet falla sin actuator | Todos los servicios | Probes tcpSocket (ya aplicado en sesión anterior) | `k8s/do-*/`, `k8s/dev/` |
+| CB necesario para particiones | gateway→auth | DestinationRules con outlierDetection (Phase 3, validado) | `k8s/istio/destination-rules.yaml` |

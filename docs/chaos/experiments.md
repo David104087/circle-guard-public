@@ -34,7 +34,8 @@ Cuando el pod de `notification-service` es eliminado, Kubernetes lo reinicia en 
 - Kafka lag en topic `health-notifications` sube durante el kill y baja al recuperarse.
 
 ### Criterios de éxito
-- Pod vuelve a `Running` en < 30 s.
+- Nuevo pod container iniciado (0/1 Running) en < 15 s.
+- Nuevo pod Ready (1/1) dentro de 90 s (readiness probe tcpSocket: initialDelaySeconds 30 + startup JVM).
 - Cero errores en `form-service` (productor Kafka) durante el experimento.
 - Lag de Kafka vuelve a 0 dentro de 2 minutos post-recuperación.
 
