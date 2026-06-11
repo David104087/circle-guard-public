@@ -1,0 +1,37 @@
+env:
+  contexts:
+  - excludePaths: []
+    name: baseline
+    urls:
+    - http://INGRESS_IP_PLACEHOLDER
+  parameters:
+    failOnError: true
+    progressToStdout: false
+jobs:
+- parameters:
+    enableTags: false
+    maxAlertsPerRule: 10
+  type: passiveScan-config
+- parameters:
+    maxDuration: 1
+    url: http://INGRESS_IP_PLACEHOLDER
+  type: spider
+- parameters:
+    maxDuration: 1
+    url: http://INGRESS_IP_PLACEHOLDER
+  type: spiderAjax
+- parameters:
+    maxDuration: 0
+  type: passiveScan-wait
+- parameters:
+    format: Long
+    summaryFile: /home/zap/zap_out.json
+  rules: []
+  type: outputSummary
+- parameters:
+    reportDescription: ''
+    reportDir: /zap/wrk/
+    reportFile: zap-report-dev.html
+    reportTitle: ZAP Scanning Report
+    template: traditional-html
+  type: report
