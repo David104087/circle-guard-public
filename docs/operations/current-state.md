@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-11 — **Sesión final. Todas las brechas de evaluación cerradas. GCP dev cluster escalado a 0 (scale-to-zero completado). 2 discos PVC huérfanos eliminados. Jenkins/SonarQube no corrían. DO: state vacío, $0. Rama activa: `feat/istio-kiali-evidence` lista para PR → master. Pendiente: usuario sube `docs/diagrams/kiali-graph.png` manualmente y crea GitHub Releases v0.2.0 + v0.3.0.**
+2026-06-11 — **SESIÓN FINAL COMPLETA. GCP $0 — cluster destruido, 0 discos, 0 LBs, 0 VMs. DO $0 — state vacío. Jenkins/SonarQube no corrían. Todas las brechas de evaluación cerradas excepto kiali-graph.png (usuario lo sube manualmente). Rama `feat/istio-kiali-evidence` lista para PR → master.**
 
 ---
 
@@ -45,19 +45,19 @@
 
 ---
 
-## Infraestructura GCP (estado actual: CLUSTER A 0 NODOS — ~$0)
+## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
 
-**2026-06-11 — FIN DE SESIÓN FINAL. Costo GCP ≈ $0.**
+**2026-06-11 — SESIÓN FINAL. Costo GCP = $0.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | **RUNNING, 0 nodos** (scale-to-zero 2026-06-11) | Node pool existe en GCS state. 2 discos PVC huérfanos eliminados. Nodo boot disks se eliminan automáticamente. |
+| circleguard-dev | **DESTRUIDO** (terraform destroy node_pool + cluster, 2026-06-11) | 2 discos PVC eliminados. 0 LBs. State: node pool + cluster removidos, resto intacto. |
 | circleguard-stage | destruido | State limpio |
 | circleguard-prod | destruido | State limpio |
 
-**1 cluster (0 VMs) · 0 discos PVC · LB del ingressgateway pendiente de liberar · ~$0 costo**
+**0 clusters · 0 VMs · 0 discos · 0 LBs · $0 costo**
 
-Para recrear dev:
+Para recrear dev en próxima sesión:
 ```bash
 cd terraform/envs/dev && terraform apply -auto-approve
 gcloud container clusters get-credentials circleguard-dev --zone=us-central1-a --project=tallerfinal-496702
