@@ -8,6 +8,8 @@ All production releases are versioned with `vMAJOR.MINOR.PATCH` (see [versioning
 
 | Version | Date | Highlights | GitHub Release |
 |---------|------|-----------|---------------|
+| [v0.3.0](../../RELEASE_NOTES_v0.3.0.md) | 2026-06-10 | Chaos Engineering bonus (Phase 12): Chaos Mesh v2.7.0, 5 experiments, 2 improvements, pipeline integration. Documentation patches: EFK justification, security.md cleanup, dedicated alerts.md | [v0.3.0](https://github.com/David104087/circle-guard-public/releases/tag/v0.3.0) |
+| [v0.2.0](../../RELEASE_NOTES_v0.2.0.md) | 2026-06-10 | Multi-Cloud bonus (Phase 11): 3 DigitalOcean DOKS clusters mirroring GCP, Istio mTLS on both clouds, cross-cloud performance comparison. FinOps bonus (Phase 13): Kubecost, Grafana cost dashboard, spot VMs, scale-to-zero automation, $442/month savings | [v0.2.0](https://github.com/David104087/circle-guard-public/releases/tag/v0.2.0) |
 | [v0.1.0](../../RELEASE_NOTES_v0.1.0.md) | 2026-05-30 | First production release — complete Proyecto Final implementation (Phases 0–10): Terraform IaC, GKE migration, Istio mesh, CI/CD with canary, full test suite, observability stack, security, change management | [v0.1.0](https://github.com/David104087/circle-guard-public/releases/tag/v0.1.0) |
 
 > Release notes are generated automatically by `ci/release-notes.sh` when the master pipeline runs end-to-end. Each release note is committed to the repo root as `RELEASE_NOTES_vX.Y.Z.md`.
