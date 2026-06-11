@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-10 — **Fin de sesión. Phase 12 (Chaos Engineering) COMPLETA 🟢. GCP $0 activos.** Dev cluster destruido (`terraform destroy`). 6 discos huérfanos eliminados. Jenkins/SonarQube ya estaban detenidos (Docker Desktop no corría). DO: state vacío, $0. Próxima sesión: abrir PR de `feat/chaos-engineering` → `master`.
+2026-06-11 — **Sesión final. Todas las brechas de evaluación cerradas. GCP dev cluster escalado a 0 (scale-to-zero completado). 2 discos PVC huérfanos eliminados. Jenkins/SonarQube no corrían. DO: state vacío, $0. Rama activa: `feat/istio-kiali-evidence` lista para PR → master. Pendiente: usuario sube `docs/diagrams/kiali-graph.png` manualmente y crea GitHub Releases v0.2.0 + v0.3.0.**
 
 ---
 
@@ -45,19 +45,19 @@
 
 ---
 
-## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
+## Infraestructura GCP (estado actual: CLUSTER A 0 NODOS — ~$0)
 
-**2026-06-10 — FIN DE SESIÓN. Costo GCP = $0.**
+**2026-06-11 — FIN DE SESIÓN FINAL. Costo GCP ≈ $0.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | **DESTRUIDO** (`terraform destroy` 2026-06-10) | State limpio en GCS. 6 discos PVC eliminados. |
+| circleguard-dev | **RUNNING, 0 nodos** (scale-to-zero 2026-06-11) | Node pool existe en GCS state. 2 discos PVC huérfanos eliminados. Nodo boot disks se eliminan automáticamente. |
 | circleguard-stage | destruido | State limpio |
 | circleguard-prod | destruido | State limpio |
 
-**0 clusters · 0 VMs · 0 discos persistentes · 0 LBs · 0 costo**
+**1 cluster (0 VMs) · 0 discos PVC · LB del ingressgateway pendiente de liberar · ~$0 costo**
 
-Para recrear dev en la próxima sesión:
+Para recrear dev:
 ```bash
 cd terraform/envs/dev && terraform apply -auto-approve
 gcloud container clusters get-credentials circleguard-dev --zone=us-central1-a --project=tallerfinal-496702
@@ -87,7 +87,22 @@ done
 
 ## Rama activa
 
-`feat/chaos-engineering` — Phase 12 completa. Listo para PR hacia `master`.
+`feat/istio-kiali-evidence` — ZAP scan + parches de documentación finales. Lista para PR → `master`.
+
+### Contenido de la rama
+- `tests/security/zap-report-dev.html` — OWASP ZAP baseline: 66 PASS, 0 FAIL
+- `docs/operations/test-results.md` — actualizado con ZAP findings reales
+- `RELEASE_NOTES_v0.2.0.md` — Multi-Cloud + FinOps
+- `RELEASE_NOTES_v0.3.0.md` — Chaos Engineering
+- `docs/releases/README.md` — índice actualizado con v0.2.0 y v0.3.0
+- `docs/operations/alerts.md` — nuevo archivo con 6 reglas de alerta documentadas
+- `docs/operations/observability.md` — justificación EFK vs ELK
+- `docs/operations/security.md` — limpiado, sin checkboxes vacías, TLS honestamente documentado
+- `docs/presentation/video-script-12min.md` — script de 12 min con 14 segmentos
+
+### Pendiente (acción manual del usuario)
+- Subir `docs/diagrams/kiali-graph.png` con screenshot real de Kiali (mTLS padlocks visibles)
+- Crear GitHub Releases v0.2.0 y v0.3.0 en el repo fork
 
 ### Contenido de la rama
 - `docs/chaos/experiments.md` — 5 experimentos diseñados con hipótesis y CRDs
