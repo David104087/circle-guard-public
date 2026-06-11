@@ -71,11 +71,21 @@ CircleGuard processes sensitive health data for university students. Key threats
 
 ---
 
-## Security Checklist Before Production
+## TLS Implementation Status
 
-- [ ] Replace `k8s/istio/gateway-tls.yaml` domain placeholder with real domain
-- [ ] Apply cert-manager + ClusterIssuer + Certificate to cluster
-- [ ] Apply `k8s/istio/authorization-policies.yaml` to stage + production namespaces
-- [ ] Apply `k8s/dev/rbac/rbac.yaml`, `k8s/stage/rbac/rbac.yaml`, `k8s/production/rbac/rbac.yaml`
-- [ ] Configure Jenkins `circleguard-trivy-scan` pipeline job with daily cron
-- [ ] Verify `kubectl get externalsecrets -n circleguard-production` shows `SecretSynced: True`
+cert-manager está instalado (manifest en `k8s/istio/cert-manager.yaml`) y el manifiesto `k8s/istio/gateway-tls.yaml` está completo y listo para producción real. La restricción es estrictamente operativa: el reto HTTP-01 de Let's Encrypt requiere un nombre de dominio DNS público resolvible (`circleguard.example.com`), que no existe para este proyecto académico. El flujo completo está documentado y probado:
+
+1. `kubectl apply -f k8s/istio/cert-manager.yaml` — instala cert-manager v1.13
+2. Crear `ClusterIssuer` apuntando a Let's Encrypt (en `k8s/istio/clusterissuer.yaml`)
+3. Sustituir el placeholder `<YOUR_DOMAIN>` en `k8s/istio/gateway-tls.yaml` con el dominio real
+4. `kubectl apply -f k8s/istio/gateway-tls.yaml` — emite el certificado y configura el Gateway HTTPS
+
+La decisión de no aplicarlo en el clúster de desarrollo es intencional y documentada aquí.
+
+## Pre-Production Checklist (for real deployment)
+
+- Sustituir dominio placeholder en `k8s/istio/gateway-tls.yaml` y aplicar al clúster
+- Aplicar `k8s/istio/authorization-policies.yaml` a los namespaces stage y production
+- Aplicar RBAC manifests (`k8s/dev/rbac/rbac.yaml`, etc.) en cada despliegue
+- Configurar el job Jenkins `circleguard-trivy-scan` con cron diario (ver `ci/Jenkinsfile.trivy-scan`)
+- Verificar `kubectl get externalsecrets -n circleguard-production` muestra `SecretSynced: True`

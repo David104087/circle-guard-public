@@ -64,6 +64,8 @@ notifications_sent_total
 
 ## Logs (Kibana + Fluent Bit)
 
+> **Nota sobre la elección tecnológica (EFK vs ELK):** El taller especifica "ELK Stack (Elasticsearch, Logstash, Kibana)". En esta implementación se eligió **Fluent Bit** en lugar de Logstash por razones de costo operativo: Fluent Bit consume ~50 MB de memoria frente a los ~512 MB de Logstash, lo cual es crítico en nodos de desarrollo con recursos limitados (2–4 GB de RAM). Fluent Bit cumple exactamente el mismo rol que Logstash en esta arquitectura: recolectar logs de los containers, parsear el formato JSON estructurado de Spring Boot, enriquecer con metadatos de Kubernetes, y forwardear a Elasticsearch. La funcionalidad es equivalente; la diferencia es únicamente en el footprint de recursos. La pila resultante (EFK: Elasticsearch + Fluent Bit + Kibana) es el estándar de la industria en entornos Kubernetes.
+
 ### Accessing Kibana
 
 ```bash
