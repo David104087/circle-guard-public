@@ -7,7 +7,7 @@
 ---
 
 ## Última actualización
-2026-06-11 — **SESIÓN FINAL COMPLETA. GCP $0 — cluster destruido, 0 discos, 0 LBs, 0 VMs. DO $0 — state vacío. Jenkins/SonarQube no corrían. Todas las brechas de evaluación cerradas excepto kiali-graph.png (usuario lo sube manualmente). Rama `feat/istio-kiali-evidence` lista para PR → master.**
+2026-06-12 — **Sesión de screenshots. circleguard-dev escalado a 0 nodos. Jenkins/SonarQube detenidos. DO $0. Jaeger trazas funcionando (Telemetry resource aplicado). Kibana conectado a ES (Fluent Bit con TLS + Suppress_Type_Name, 514+ logs). Screenshots tomados: Alertmanager, Kibana Discover, Kiali, Kubecost. Pendiente: screenshots de Grafana. PR feat/istio-kiali-evidence → master pendiente (usuario hace push manual).**
 
 ---
 
@@ -45,21 +45,21 @@
 
 ---
 
-## Infraestructura GCP (estado actual: TODO DESTRUIDO — $0)
+## Infraestructura GCP (estado actual: 0 NODOS — $0)
 
-**2026-06-11 — SESIÓN FINAL. Costo GCP = $0.**
+**2026-06-12 — Cluster existe pero escalado a 0 nodos.**
 
 | Cluster | Estado | Notas |
 |---------|--------|-------|
-| circleguard-dev | **DESTRUIDO** (terraform destroy node_pool + cluster, 2026-06-11) | 2 discos PVC eliminados. 0 LBs. State: node pool + cluster removidos, resto intacto. |
+| circleguard-dev | **0 nodos** (escalado a 0, 2026-06-12) | Cluster existe en GCP. State Terraform intacto. |
 | circleguard-stage | destruido | State limpio |
 | circleguard-prod | destruido | State limpio |
 
-**0 clusters · 0 VMs · 0 discos · 0 LBs · $0 costo**
+**1 cluster (0 nodos) · 0 VMs activas · ~$0 costo**
 
-Para recrear dev en próxima sesión:
+Para levantar dev en próxima sesión:
 ```bash
-cd terraform/envs/dev && terraform apply -auto-approve
+gcloud container clusters resize circleguard-dev --node-pool=default-pool --num-nodes=1 --zone=us-central1-a --project=tallerfinal-496702 --quiet
 gcloud container clusters get-credentials circleguard-dev --zone=us-central1-a --project=tallerfinal-496702
 ```
 
