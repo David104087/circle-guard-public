@@ -1,6 +1,8 @@
 # CircleGuard — Final Project Report
 ## SE5 Software Engineering 5 · Universidad · 2026
 
+# VIDEO: https://youtu.be/Cw0wbN6N6cw
+
 ---
 
 # Table of Contents

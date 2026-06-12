@@ -148,7 +148,7 @@ Implementar todos los microservicios de la arquitectura e integrándolos en un e
    - Documentación de la infraestructura como código
    - Release Notes de cada versión
 
-3. Presentación y demostración (20-30 minutos) que incluya:
+3. Presentación y demostración que incluya:
    - Arquitectura e infraestructura
    - Demostración de CI/CD
    - Demostración de la aplicación funcionando
